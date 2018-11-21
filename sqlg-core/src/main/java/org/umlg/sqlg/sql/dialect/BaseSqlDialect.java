@@ -659,7 +659,7 @@ public abstract class BaseSqlDialect implements SqlDialect, SqlBulkDialect, SqlS
                 VertexLabel vertexLabel = sqlgGraph.getTopology().getVertexLabel(schemaTable.getSchema(), schemaTable.getTable())
                         .orElseThrow(() -> new IllegalStateException(String.format("VertexLabel not found for %s.%s", schemaTable.getSchema(), schemaTable.getTable())));
 
-                //TODO refacor to remove looping.
+                //TODO refactor to remove looping.
                 List<RecordId.ID> ids = new ArrayList<>();
                 for (SqlgVertex vertex : schemaVertices.getValue()) {
                     ids.add(((RecordId) vertex.id()).getID());
@@ -702,60 +702,6 @@ public abstract class BaseSqlDialect implements SqlDialect, SqlBulkDialect, SqlS
                 } catch (SQLException e) {
                     throw new RuntimeException(e);
                 }
-
-//                Pair<Set<SchemaTable>, Set<SchemaTable>> tableLabels = sqlgGraph.getTopology().getTableLabels(SchemaTable.of(schemaTable.getSchema(), VERTEX_PREFIX + schemaTable.getTable()));
-//                List<SqlgVertex> vertices = schemaVertices.getValue();
-//                int numberOfLoops = (vertices.size() / sqlInParameterLimit());
-//                int previous = 0;
-//                for (int i = 1; i <= numberOfLoops + 1; i++) {
-//
-//                    int subListTo = i * sqlInParameterLimit();
-//                    List<SqlgVertex> subVertices;
-//                    if (i <= numberOfLoops) {
-//                        subVertices = vertices.subList(previous, subListTo);
-//                    } else {
-//                        subVertices = vertices.subList(previous, vertices.size());
-//                    }
-//
-//                    previous = subListTo;
-//
-//                    if (!subVertices.isEmpty()) {
-//
-//                        Set<SchemaTable> inLabels = tableLabels.getLeft();
-//                        Set<SchemaTable> outLabels = tableLabels.getRight();
-//
-//                        deleteEdges(sqlgGraph, schemaTable, subVertices, inLabels, true);
-//                        deleteEdges(sqlgGraph, schemaTable, subVertices, outLabels, false);
-//
-//                        StringBuilder sql = new StringBuilder("DELETE FROM ");
-//                        sql.append(sqlgGraph.getSqlDialect().maybeWrapInQoutes(schemaTable.getSchema()));
-//                        sql.append(".");
-//                        sql.append(sqlgGraph.getSqlDialect().maybeWrapInQoutes((VERTEX_PREFIX) + schemaTable.getTable()));
-//                        sql.append(" WHERE ");
-//                        sql.append(sqlgGraph.getSqlDialect().maybeWrapInQoutes("ID"));
-//                        sql.append(" in (");
-//                        int count = 1;
-//                        for (SqlgVertex sqlgVertex : subVertices) {
-//                            sql.append("?");
-//                            if (count++ < subVertices.size()) {
-//                                sql.append(",");
-//                            }
-//                        }
-//                        sql.append(")");
-//                        if (sqlgGraph.getSqlDialect().needsSemicolon()) {
-//                            sql.append(";");
-//                        }
-//                        if (logger.isDebugEnabled()) {
-//                            logger.debug(sql);
-//                        }
-//                        Connection conn = sqlgGraph.tx().getConnection();
-//                        try (PreparedStatement preparedStatement = conn.prepareStatement(sql)) {
-//                            preparedStatement.executeUpdate();
-//                        } catch (SQLException e) {
-//                            throw new RuntimeException(e);
-//                        }
-//                    }
-//                }
             }
         }
     }

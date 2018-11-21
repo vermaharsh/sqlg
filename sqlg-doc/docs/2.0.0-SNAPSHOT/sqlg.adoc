@@ -577,7 +577,7 @@ If you do not connections to the database will remain open and eventually the co
 
 TinkerPop's property graph semantics specifies that every vertex and edge has a single label. Modelling this in a RDBMS
 is trivial. TinkerPop has no notion of cardinality nor of order. Every relationship between vertex labels is modelled as
-`many to many` relationship with no specified order.
+a `many to many` relationship with no specified order.
 
 This realizes itself as a classic `many to many` relationship in a RDBMS database.
 

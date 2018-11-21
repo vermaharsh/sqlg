@@ -536,9 +536,10 @@ public class ReplacedStep<S, E> {
                 this.leftJoin,
                 this.drop,
                 replacedStepDepth,
-                this.labels
+                this.labels,
+                getRestrictedProperties()
         );
-        schemaTableTree.setRestrictedProperties(getRestrictedProperties());
+//        schemaTableTree.setRestrictedProperties(getRestrictedProperties());
         result.add(schemaTableTree);
     }
 
@@ -807,7 +808,7 @@ public class ReplacedStep<S, E> {
     }
 
 	public Set<String> getRestrictedProperties() {
-		return restrictedProperties;
+		return this.restrictedProperties;
 	}
 
 	public void setRestrictedProperties(Set<String> restrictedColumns) {

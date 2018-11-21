@@ -70,6 +70,7 @@ public abstract class BaseStrategy {
             DropStep.class,
             PropertiesStep.class,
             PropertyMapStep.class
+//            MaxGlobalStep.class
     );
     public static final String PATH_LABEL_SUFFIX = "P~~~";
     public static final String EMIT_LABEL_SUFFIX = "E~~~";
@@ -252,7 +253,6 @@ public abstract class BaseStrategy {
                 for (String label : step.getLabels()) {
                     sqlgPropertiesStep.addLabel(label);
                 }
-                sqlgPropertiesStep.setAppliesToLabels(this.currentReplacedStep.getLabels());
                 //noinspection unchecked
                 TraversalHelper.replaceStep((Step) step, sqlgPropertiesStep, traversal);
             }

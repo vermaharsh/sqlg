@@ -6,6 +6,7 @@ import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.tinkerpop.gremlin.process.traversal.*;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.lambda.ElementValueTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.lambda.TokenTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.SelectOneStep;
@@ -109,6 +110,8 @@ public class SchemaTableTree {
 
     private Set<String> restrictedProperties = null;
     private boolean eagerLoad = false;
+    private ListOrderedSet<String> groupBy = null;
+    private String aggregateFunction = GraphTraversal.Symbols.max;
 
     public void loadEager() {
         this.eagerLoad = true;
@@ -155,7 +158,8 @@ public class SchemaTableTree {
                     boolean optionalLeftJoin,
                     boolean drop,
                     int replacedStepDepth,
-                    Set<String> labels
+                    Set<String> labels,
+                    Set<String> restrictedColumns
     ) {
         this.sqlgGraph = sqlgGraph;
         this.schemaTable = schemaTable;
@@ -176,6 +180,9 @@ public class SchemaTableTree {
         setIdentifiersAndDistributionColumn();
         this.hasIDPrimaryKey = this.identifiers.isEmpty();
         initializeAliasColumnNameMaps();
+        this.restrictedProperties = restrictedColumns;
+        this.groupBy = ListOrderedSet.listOrderedSet(Arrays.asList("age"));
+        this.aggregateFunction = GraphTraversal.Symbols.max;
     }
 
     private void setIdentifiersAndDistributionColumn() {
@@ -303,7 +310,9 @@ public class SchemaTableTree {
         schemaTableTree.untilFirst = untilFirst;
         schemaTableTree.optionalLeftJoin = leftJoin;
         schemaTableTree.drop = drop;
-        schemaTableTree.setRestrictedProperties(restrictedProperties);
+        schemaTableTree.restrictedProperties = restrictedProperties;
+        schemaTableTree.groupBy = ListOrderedSet.listOrderedSet(Arrays.asList("age"));
+        schemaTableTree.aggregateFunction = GraphTraversal.Symbols.max;
         return schemaTableTree;
     }
 
@@ -2687,44 +2696,33 @@ public class SchemaTableTree {
         return this.distributionColumn != null;
     }
 
-    public Set<String> getRestrictedProperties() {
-        return restrictedProperties;
-    }
-
-    public void setRestrictedProperties(Set<String> restrictedColumns) {
-        this.restrictedProperties = restrictedColumns;
-    }
-
     /**
      * should we select the given property?
      *
      * @param property the property name
      * @return true if the property should be part of the select clause, false otherwise
      */
-    public boolean shouldSelectProperty(String property) {
+    private boolean shouldSelectProperty(String property) {
         // no restriction
-        if (getRoot().eagerLoad || restrictedProperties == null) {
+        if (getRoot().eagerLoad || this.restrictedProperties == null) {
             return true;
         }
         // explicit restriction
-        if (getRoot().eagerLoad || restrictedProperties.contains(property)) {
-            return true;
-        }
-        return false;
+        return getRoot().eagerLoad || this.restrictedProperties.contains(property);
     }
 
     /**
      * calculate property restrictions from explicit restrictions and required properties
      */
     private void calculatePropertyRestrictions() {
-        if (restrictedProperties == null) {
+        if (this.restrictedProperties == null) {
             return;
         }
         // we use aliases for ordering, so we need the property in the select clause
         for (org.javatuples.Pair<Traversal.Admin<?, ?>, Comparator<?>> comparator : this.getDbComparators()) {
 
             if (comparator.getValue1() instanceof ElementValueComparator) {
-                restrictedProperties.add(((ElementValueComparator<?>) comparator.getValue1()).getPropertyKey());
+                this.restrictedProperties.add(((ElementValueComparator<?>) comparator.getValue1()).getPropertyKey());
 
             } else if ((comparator.getValue0() instanceof ElementValueTraversal<?> || comparator.getValue0() instanceof TokenTraversal<?, ?>)
                     && comparator.getValue1() instanceof Order) {
@@ -2743,7 +2741,7 @@ public class SchemaTableTree {
                     }
                 }
                 if (key != null) {
-                    restrictedProperties.add(key);
+                    this.restrictedProperties.add(key);
                 }
             }
         }

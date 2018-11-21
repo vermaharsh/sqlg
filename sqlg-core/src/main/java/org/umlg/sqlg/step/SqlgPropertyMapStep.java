@@ -20,7 +20,6 @@ public class SqlgPropertyMapStep<K, E> extends SqlgMapStep<Element, Map<K, E>> i
     protected final PropertyType returnType;
     protected final boolean includeTokens;
     protected Traversal.Admin<Element, ? extends Property> propertyTraversal;
-    private Set<String> appliesToLabels;
 
     public SqlgPropertyMapStep(final Traversal.Admin traversal, final boolean includeTokens, final PropertyType propertyType, final String... propertyKeys) {
         super(traversal);
@@ -28,10 +27,6 @@ public class SqlgPropertyMapStep<K, E> extends SqlgMapStep<Element, Map<K, E>> i
         this.propertyKeys = propertyKeys;
         this.returnType = propertyType;
         this.propertyTraversal = null;
-    }
-
-    public void setAppliesToLabels(Set<String> appliesToLabels) {
-        this.appliesToLabels = appliesToLabels;
     }
 
     @Override

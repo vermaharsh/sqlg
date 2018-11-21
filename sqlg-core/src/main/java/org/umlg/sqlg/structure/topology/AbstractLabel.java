@@ -39,8 +39,8 @@ public abstract class AbstractLabel implements TopologyInf {
     //Citus sharding
     private PropertyColumn distributionPropertyColumn;
     private PropertyColumn uncommittedDistributionPropertyColumn;
-    private AbstractLabel distributionColocateAbstractLabel;
-    private AbstractLabel uncommittedDistributionColocateAbstractLabel;
+    private AbstractLabel distributionCollocateAbstractLabel;
+    private AbstractLabel uncommittedDistributionCollocateAbstractLabel;
     private int shardCount = -1;
     private int uncommittedShardCount = -1;
 
@@ -617,7 +617,7 @@ public abstract class AbstractLabel implements TopologyInf {
 
     void addDistributionColocate(Vertex colocate) {
         Preconditions.checkState(this.getSchema().getTopology().isSqlWriteLockHeldByCurrentThread());
-        this.distributionColocateAbstractLabel = getSchema().getVertexLabel(colocate.value(SQLG_SCHEMA_VERTEX_LABEL_NAME)).orElseThrow(() -> new IllegalStateException("Distribution Co-locate vertex label %s not found", colocate.value(SQLG_SCHEMA_VERTEX_LABEL_NAME)));
+        this.distributionCollocateAbstractLabel = getSchema().getVertexLabel(colocate.value(SQLG_SCHEMA_VERTEX_LABEL_NAME)).orElseThrow(() -> new IllegalStateException("Distribution Co-locate vertex label %s not found", colocate.value(SQLG_SCHEMA_VERTEX_LABEL_NAME)));
     }
 
     void addDistributionProperty(Vertex distributionProperty) {
@@ -720,8 +720,8 @@ public abstract class AbstractLabel implements TopologyInf {
         if (this.uncommittedDistributionPropertyColumn != null) {
             this.distributionPropertyColumn = this.uncommittedDistributionPropertyColumn;
         }
-        if (this.uncommittedDistributionColocateAbstractLabel != null) {
-            this.distributionColocateAbstractLabel = this.uncommittedDistributionColocateAbstractLabel;
+        if (this.uncommittedDistributionCollocateAbstractLabel != null) {
+            this.distributionCollocateAbstractLabel = this.uncommittedDistributionCollocateAbstractLabel;
         }
         if (this.uncommittedShardCount != -1) {
             this.shardCount = this.uncommittedShardCount;
@@ -759,7 +759,7 @@ public abstract class AbstractLabel implements TopologyInf {
             entry.getValue().afterRollback();
         }
         this.uncommittedDistributionPropertyColumn = null;
-        this.uncommittedDistributionColocateAbstractLabel = null;
+        this.uncommittedDistributionCollocateAbstractLabel = null;
     }
 
     JsonNode toJson() {
@@ -805,8 +805,8 @@ public abstract class AbstractLabel implements TopologyInf {
                 uncommittedDistributionPropertyColumnObjectNode = this.uncommittedDistributionPropertyColumn.toNotifyJson();
             }
             ObjectNode uncommittedDistributionColocateAbstractLabelObjectNode = null;
-            if (this.uncommittedDistributionColocateAbstractLabel != null) {
-                String colocateLabel = this.uncommittedDistributionColocateAbstractLabel.label;
+            if (this.uncommittedDistributionCollocateAbstractLabel != null) {
+                String colocateLabel = this.uncommittedDistributionCollocateAbstractLabel.label;
                 uncommittedDistributionColocateAbstractLabelObjectNode = new ObjectNode(Topology.OBJECT_MAPPER.getNodeFactory());
                 uncommittedDistributionColocateAbstractLabelObjectNode.put("colocateLabel", colocateLabel);
             }
@@ -838,7 +838,7 @@ public abstract class AbstractLabel implements TopologyInf {
                 result.set("uncommittedDistributionPropertyColumn", uncommittedDistributionPropertyColumnObjectNode);
             }
             if (uncommittedDistributionColocateAbstractLabelObjectNode != null) {
-                result.set("uncommittedDistributionColocateAbstractLabel", uncommittedDistributionColocateAbstractLabelObjectNode);
+                result.set("uncommittedDistributionCollocateAbstractLabel", uncommittedDistributionColocateAbstractLabelObjectNode);
             }
             if (uncommittedShardCountObjectNode != null) {
                 result.set("uncommittedShardCount", uncommittedShardCountObjectNode);
@@ -928,11 +928,11 @@ public abstract class AbstractLabel implements TopologyInf {
         if (distributionPropertyColumnObjectNode != null) {
             this.distributionPropertyColumn = PropertyColumn.fromNotifyJson(this, distributionPropertyColumnObjectNode);
         }
-        ObjectNode distributionColocateAbstractLabelObjectNode = (ObjectNode) vertexLabelJson.get("uncommittedDistributionColocateAbstractLabel");
+        ObjectNode distributionColocateAbstractLabelObjectNode = (ObjectNode) vertexLabelJson.get("uncommittedDistributionCollocateAbstractLabel");
         if (distributionColocateAbstractLabelObjectNode != null) {
             Optional<VertexLabel> colocateVertexLabelOpt = getSchema().getVertexLabel(distributionColocateAbstractLabelObjectNode.get("colocateLabel").asText());
             Preconditions.checkState(colocateVertexLabelOpt.isPresent());
-            this.distributionColocateAbstractLabel = colocateVertexLabelOpt.get();
+            this.distributionCollocateAbstractLabel = colocateVertexLabelOpt.get();
         }
         ObjectNode shardCountObjectNode = (ObjectNode) vertexLabelJson.get("uncommittedShardCount");
         if (shardCountObjectNode != null) {
@@ -1132,7 +1132,7 @@ public abstract class AbstractLabel implements TopologyInf {
                 TopologyManager.distributeAbstractLabel(this.sqlgGraph, this, shardCount, distributionPropertyColumn, colocate);
                 distribute(shardCount, distributionPropertyColumn, colocate);
                 this.uncommittedDistributionPropertyColumn = distributionPropertyColumn;
-                this.uncommittedDistributionColocateAbstractLabel = colocate;
+                this.uncommittedDistributionCollocateAbstractLabel = colocate;
                 this.uncommittedShardCount = shardCount;
             }
         }
@@ -1151,10 +1151,10 @@ public abstract class AbstractLabel implements TopologyInf {
     }
 
     public AbstractLabel getDistributionColocate() {
-        if (this.distributionColocateAbstractLabel != null) {
-            return this.distributionColocateAbstractLabel;
+        if (this.distributionCollocateAbstractLabel != null) {
+            return this.distributionCollocateAbstractLabel;
         } else {
-            return this.uncommittedDistributionColocateAbstractLabel;
+            return this.uncommittedDistributionCollocateAbstractLabel;
 
         }
     }
