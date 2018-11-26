@@ -57,10 +57,10 @@ public class TestSqlgBranchStep extends BaseTest {
                 .V().hasLabel("A").order().by("order")
                 .local(
                         __.optional(
-                                __.outE("ab").order().by("order", Order.decr).inV()
+                                __.outE("ab").order().by("order", Order.desc).inV()
                                         .local(
                                                 __.optional(
-                                                        __.out("bc").order().by("order", Order.decr)
+                                                        __.out("bc").order().by("order", Order.desc)
                                                 )
                                         )
                         )

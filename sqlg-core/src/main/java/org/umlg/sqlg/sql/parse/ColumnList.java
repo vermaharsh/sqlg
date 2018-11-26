@@ -66,11 +66,15 @@ public class ColumnList {
      * @param stepDepth
      * @param alias
      */
-    private Column add(String schema, String table, String column, int stepDepth, String alias) {
-        Column c = new Column(schema, table, column, this.filteredAllTables.get(schema + "." + table).get(column), stepDepth);
+    private Column add(String schema, String table, String column, int stepDepth, String alias, String aggregateFunction) {
+        Column c = new Column(schema, table, column, this.filteredAllTables.get(schema + "." + table).get(column), stepDepth, aggregateFunction);
         this.columns.put(c, alias);
         this.aliases.put(alias, c);
         return c;
+    }
+
+    private Column add(String schema, String table, String column, int stepDepth, String alias) {
+        return add(schema, table, column, stepDepth, alias, null);
     }
 
     /**
@@ -84,7 +88,7 @@ public class ColumnList {
      * @param foreignKeyParts The foreign key column broken up into its parts. schema, table and for user supplied identifiers the property name.
      */
     private void addForeignKey(String schema, String table, String column, int stepDepth, String alias, String[] foreignKeyParts) {
-        Column c = add(schema, table, column, stepDepth, alias);
+        Column c = add(schema, table, column, stepDepth, alias, null);
         c.isForeignKey = true;
         if (foreignKeyParts.length == 3) {
             Map<String, PropertyType> properties = this.filteredAllTables.get(foreignKeyParts[0] + "." + Topology.VERTEX_PREFIX + foreignKeyParts[1]);
@@ -115,7 +119,11 @@ public class ColumnList {
      * @param alias
      */
     public void add(SchemaTableTree stt, String column, String alias) {
-        add(stt.getSchemaTable(), column, stt.getStepDepth(), alias);
+        add(stt.getSchemaTable(), column, stt.getStepDepth(), alias, stt.getAggregateFunction() == null ? null : stt.getAggregateFunction().getLeft());
+    }
+
+    public void add(SchemaTableTree stt, String column, String alias, String aggregateFunction) {
+        add(stt.getSchemaTable(), column, stt.getStepDepth(), alias, aggregateFunction);
     }
 
     /**
@@ -128,6 +136,10 @@ public class ColumnList {
      */
     public void add(SchemaTable st, String column, int stepDepth, String alias) {
         add(st.getSchema(), st.getTable(), column, stepDepth, alias);
+    }
+
+    public void add(SchemaTable st, String column, int stepDepth, String alias, String aggregateFunction) {
+        add(st.getSchema(), st.getTable(), column, stepDepth, alias, aggregateFunction);
     }
 
     public void addForeignKey(SchemaTableTree stt, String column, String alias) {
@@ -146,7 +158,7 @@ public class ColumnList {
      */
     private String getAlias(String schema, String table, String column, int stepDepth) {
         //PropertyType is not part of equals or hashCode so not needed for the lookup.
-        Column c = new Column(schema, table, column, null, stepDepth);
+        Column c = new Column(schema, table, column, null, stepDepth, null);
         return columns.get(c);
     }
 
@@ -286,7 +298,9 @@ public class ColumnList {
         //Only set for user identifier primary keys
         private String foreignKeyProperty;
 
-        Column(String schema, String table, String column, PropertyType propertyType, int stepDepth) {
+        private String aggregateFunction;
+
+        Column(String schema, String table, String column, PropertyType propertyType, int stepDepth, String aggregateFunction) {
             super();
             this.schema = schema;
             this.table = table;
@@ -294,6 +308,7 @@ public class ColumnList {
             this.propertyType = propertyType;
             this.stepDepth = stepDepth;
             this.ID = this.column.equals(Topology.ID);
+            this.aggregateFunction = aggregateFunction;
         }
 
         @Override
@@ -304,6 +319,7 @@ public class ColumnList {
             result = prime * result + ((column == null) ? 0 : column.hashCode());
             result = prime * result + ((schema == null) ? 0 : schema.hashCode());
             result = prime * result + ((table == null) ? 0 : table.hashCode());
+            result = prime * result + ((aggregateFunction == null) ? 0 : aggregateFunction.hashCode());
             result = prime * result + stepDepth;
             return result;
         }
@@ -333,6 +349,11 @@ public class ColumnList {
                 if (other.table != null)
                     return false;
             } else if (!table.equals(other.table))
+                return false;
+            if (aggregateFunction == null) {
+                if (other.aggregateFunction != null)
+                    return false;
+            } else if (!aggregateFunction.equals(other.aggregateFunction))
                 return false;
             return this.stepDepth == other.stepDepth;
         }
@@ -399,11 +420,18 @@ public class ColumnList {
          * @param sb
          */
         void toString(StringBuilder sb) {
+            if (this.aggregateFunction != null) {
+                sb.append(this.aggregateFunction);
+                sb.append("(");
+            }
             sb.append(sqlgGraph.getSqlDialect().maybeWrapInQoutes(schema));
             sb.append(".");
             sb.append(sqlgGraph.getSqlDialect().maybeWrapInQoutes(table));
             sb.append(".");
             sb.append(sqlgGraph.getSqlDialect().maybeWrapInQoutes(column));
+            if (this.aggregateFunction != null) {
+                sb.append(")");
+            }
         }
 
         boolean isFor(int stepDepth, SchemaTable schemaTable) {

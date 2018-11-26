@@ -1,6 +1,7 @@
 package org.umlg.sqlg.sql.parse;
 
 import com.google.common.base.Preconditions;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tinkerpop.gremlin.process.traversal.Order;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.lambda.ElementValueTraversal;
@@ -9,7 +10,6 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.filter.RangeGlobalSte
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.GraphStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.OrderGlobalStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.SelectOneStep;
-import org.javatuples.Pair;
 import org.umlg.sqlg.strategy.BaseStrategy;
 import org.umlg.sqlg.util.SqlgUtil;
 
@@ -130,7 +130,7 @@ public class ReplacedStepTree {
                 labels.add(SqlgUtil.originalLabel(label));
             }
             for (Pair<Traversal.Admin<?, ?>, Comparator<?>> objects : replacedStep.getSqlgComparatorHolder().getComparators()) {
-                Traversal.Admin<?, ?> traversal = objects.getValue0();
+                Traversal.Admin<?, ?> traversal = objects.getLeft();
                 if (traversal.getSteps().size() == 1 && traversal.getSteps().get(0) instanceof SelectOneStep) {
                     //xxxxx.select("a").order().by(select("a").by("name"), Order.decr)
                     SelectOneStep selectOneStep = (SelectOneStep) traversal.getSteps().get(0);
@@ -169,7 +169,7 @@ public class ReplacedStepTree {
     public boolean orderByIsOrder() {
         for (ReplacedStep<?, ?> replacedStep : linearPathToLeafNode()) {
             for (Pair<Traversal.Admin<?, ?>, Comparator<?>> objects : replacedStep.getSqlgComparatorHolder().getComparators()) {
-                if (!(objects.getValue1() instanceof Order && objects.getValue1() != Order.shuffle)) {
+                if (!(objects.getRight() instanceof Order && objects.getRight() != Order.shuffle)) {
                     return false;
                 }
             }

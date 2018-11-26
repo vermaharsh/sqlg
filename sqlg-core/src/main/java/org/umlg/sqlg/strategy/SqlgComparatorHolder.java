@@ -1,7 +1,7 @@
 package org.umlg.sqlg.strategy;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
-import org.javatuples.Pair;
 
 import java.util.ArrayList;
 import java.util.Comparator;

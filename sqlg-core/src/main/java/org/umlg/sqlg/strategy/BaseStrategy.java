@@ -3,7 +3,11 @@ package org.umlg.sqlg.strategy;
 import com.google.common.base.Preconditions;
 import org.apache.commons.lang3.Range;
 import org.apache.commons.lang3.mutable.MutableInt;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tinkerpop.gremlin.process.traversal.*;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.DefaultGraphTraversal;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
+import org.apache.tinkerpop.gremlin.process.traversal.lambda.ElementValueTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.lambda.LoopTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.HasContainerHolder;
 import org.apache.tinkerpop.gremlin.process.traversal.step.branch.ChooseStep;
@@ -18,6 +22,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.sideEffect.TreeSideEf
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.AbstractStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.ComputerAwareStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
+import org.apache.tinkerpop.gremlin.process.traversal.step.util.ReducingBarrierStep;
 import org.apache.tinkerpop.gremlin.process.traversal.strategy.decoration.EventStrategy;
 import org.apache.tinkerpop.gremlin.process.traversal.util.AndP;
 import org.apache.tinkerpop.gremlin.process.traversal.util.ConnectiveP;
@@ -25,17 +30,13 @@ import org.apache.tinkerpop.gremlin.process.traversal.util.OrP;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalHelper;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.T;
-import org.javatuples.Pair;
 import org.umlg.sqlg.predicate.Existence;
 import org.umlg.sqlg.predicate.FullText;
 import org.umlg.sqlg.predicate.Text;
 import org.umlg.sqlg.sql.parse.AndOrHasContainer;
 import org.umlg.sqlg.sql.parse.ReplacedStep;
 import org.umlg.sqlg.sql.parse.ReplacedStepTree;
-import org.umlg.sqlg.step.SqlgGraphStep;
-import org.umlg.sqlg.step.SqlgPropertyMapStep;
-import org.umlg.sqlg.step.SqlgStep;
-import org.umlg.sqlg.step.SqlgVertexStep;
+import org.umlg.sqlg.step.*;
 import org.umlg.sqlg.step.barrier.SqlgLocalStepBarrier;
 import org.umlg.sqlg.structure.SqlgGraph;
 import org.umlg.sqlg.util.SqlgTraversalUtil;
@@ -69,8 +70,9 @@ public abstract class BaseStrategy {
             SelectOneStep.class,
             DropStep.class,
             PropertiesStep.class,
-            PropertyMapStep.class
-//            MaxGlobalStep.class
+            PropertyMapStep.class,
+            MaxGlobalStep.class,
+            GroupStep.class
     );
     public static final String PATH_LABEL_SUFFIX = "P~~~";
     public static final String EMIT_LABEL_SUFFIX = "E~~~";
@@ -102,7 +104,6 @@ public abstract class BaseStrategy {
         this.traversal = traversal;
         Optional<Graph> graph = traversal.getGraph();
         Preconditions.checkState(graph.isPresent(), "BUG: SqlgGraph must be present on the traversal.");
-        //noinspection OptionalGetWithoutIsPresent
         this.sqlgGraph = (SqlgGraph) graph.get();
     }
 
@@ -190,7 +191,6 @@ public abstract class BaseStrategy {
                         }
                     }
                 }
-//                return !stepIterator.hasNext() || !(stepIterator.next() instanceof SelectOneStep);
             } else if (step instanceof DropStep && (!this.sqlgGraph.getSqlDialect().isMariaDb())) {
 
                 Traversal.Admin<?, ?> root = TraversalHelper.getRootTraversal(this.traversal);
@@ -210,11 +210,85 @@ public abstract class BaseStrategy {
                 return handlePropertiesStep(this.currentReplacedStep, step);
             } else if (step instanceof PropertyMapStep) {
                 return handlePropertyMapStep(step);
+            } else if (step instanceof MaxGlobalStep) {
+                return handleMaxGlobalStep(this.currentReplacedStep, step);
+            } else if (step instanceof GroupStep) {
+                return handleGroupStep(this.currentReplacedStep, step);
             } else {
                 throw new IllegalStateException("Unhandled step " + step.getClass().getName());
             }
         }
         return true;
+    }
+
+    private boolean handleMaxGlobalStep(ReplacedStep<?, ?> replacedStep, Step<?, ?> step) {
+//        MaxGlobalStep<?> maxGlobalStep = (MaxGlobalStep<?>) step;
+//        replacedStep.setAggregateFunction(Pair.of(GraphTraversal.Symbols.max, Collections.emptyList()));
+//        this.traversal.removeStep(step);
+        return false;
+    }
+
+    private boolean handleGroupStep(ReplacedStep<?, ?> replacedStep, Step<?, ?> step) {
+        GroupStep<?, ?, ?> groupStep = (GroupStep<?, ?, ?>) step;
+        List<Traversal.Admin<?, ?>> localChildren = groupStep.getLocalChildren();
+        if (localChildren.size() == 2) {
+            Traversal.Admin<?, ?> groupByTraversal = localChildren.get(0);
+            Traversal.Admin<?, ?> aggregateOverTraversal = localChildren.get(1);
+//            List<String> groupBy = new ArrayList<>();
+            boolean isPropertiesStep = false;
+            List<String> groupByKeys  = new ArrayList<>();
+            if (groupByTraversal instanceof ElementValueTraversal) {
+                ElementValueTraversal<?> elementValueTraversal = (ElementValueTraversal) groupByTraversal;
+                groupByKeys.add(elementValueTraversal.getPropertyKey());
+//                if (replacedStep.getRestrictedProperties() == null) {
+//                    replacedStep.setRestrictedProperties(new HashSet<>(Collections.singleton(elementValueTraversal.getPropertyKey())));
+//                } else {
+//                    replacedStep.getRestrictedProperties().add(elementValueTraversal.getPropertyKey());
+//                }
+//                replacedStep.setGroupBy(Collections.singletonList(elementValueTraversal.getPropertyKey()));
+//                groupBy.add(elementValueTraversal.getPropertyKey());
+            } else if (groupByTraversal instanceof DefaultGraphTraversal) {
+                List<Step> groupBySteps = groupByTraversal.getSteps();
+                if ((groupBySteps.get(0) instanceof PropertiesStep) || (groupBySteps.get(0) instanceof PropertyMapStep)) {
+                    isPropertiesStep = groupBySteps.get(0) instanceof PropertiesStep;
+                    List<String> groupBys = getRestrictedProperties(groupBySteps.get(0));
+                    groupByKeys.addAll(groupBys);
+//                    groupBy.addAll(groupBys);
+//                    if (replacedStep.getRestrictedProperties() == null) {
+//                        replacedStep.setRestrictedProperties(new HashSet<>(groupBys));
+//                    } else {
+//                        replacedStep.getRestrictedProperties().addAll(groupBys);
+//                    }
+//                    replacedStep.setGroupBy(groupBy);
+                } else {
+                    return false;
+                }
+            }
+            List<Step> valueTraversalSteps = aggregateOverTraversal.getSteps();
+            if (valueTraversalSteps.size() == 2) {
+                Step one = valueTraversalSteps.get(0);
+                Step two = valueTraversalSteps.get(1);
+                if (one instanceof PropertiesStep && two instanceof ReducingBarrierStep) {
+                    PropertiesStep propertiesStep = (PropertiesStep) one;
+                    List<String> aggregationFunctionProperty = getRestrictedProperties(propertiesStep);
+                    handlePropertiesStep(replacedStep, propertiesStep);
+
+                    if (replacedStep.getRestrictedProperties() == null) {
+                        replacedStep.setRestrictedProperties(new HashSet<>(groupByKeys));
+                    } else {
+                        replacedStep.getRestrictedProperties().addAll(groupByKeys);
+                    }
+                    replacedStep.setGroupBy(groupByKeys);
+
+                    replacedStep.setAggregateFunction(Pair.of(GraphTraversal.Symbols.max, aggregationFunctionProperty));
+                    SqlgGroupStep<?, ?> sqlgPropertiesStep = new SqlgGroupStep<>(this.traversal, groupByKeys, aggregationFunctionProperty.get(0), isPropertiesStep);
+                    //noinspection unchecked
+                    TraversalHelper.replaceStep((Step) step, sqlgPropertiesStep, this.traversal);
+                }
+            }
+            return false;
+        }
+        return false;
     }
 
     private boolean handlePropertyMapStep(Step<?, ?> step) {
@@ -291,20 +365,6 @@ public abstract class BaseStrategy {
     protected abstract boolean doFirst(ListIterator<Step<?, ?>> stepIterator, Step<?, ?> step, MutableInt pathCount);
 
     private void handleVertexStep(ListIterator<Step<?, ?>> stepIterator, AbstractStep<?, ?> step, MutableInt pathCount) {
-
-//        stepIterator.previous();
-//        Step s4;
-//        Step previous = null;
-//        if (stepIterator.hasPrevious()) {
-//            previous = stepIterator.previous();
-//            stepIterator.next();
-//            s4 = stepIterator.next();
-//        } else {
-//            s4 = stepIterator.next();
-//
-//        }
-//        Preconditions.checkState(s4 == step);
-
         this.currentReplacedStep = ReplacedStep.from(
                 this.sqlgGraph.getTopology(),
                 step,
@@ -330,10 +390,6 @@ public abstract class BaseStrategy {
         }
         pathCount.increment();
         this.currentTreeNodeNode = treeNodeNode;
-//        if (previous instanceof SelectOneStep) {
-//            this.currentReplacedStep.addLabel(pathCount.getValue() + BaseStrategy.PATH_LABEL_SUFFIX + "x");
-//            TraversalHelper.insertAfterStep(new SelectOneStep<>(this.traversal, Pop.last, "x"), previous, this.traversal);
-//        }
     }
 
     private void handleRepeatStep(RepeatStep<?> repeatStep, MutableInt pathCount) {
@@ -659,7 +715,7 @@ public abstract class BaseStrategy {
                         String key = (String) selectOneStep.getScopeKeys().iterator().next();
                         this.currentReplacedStep.getSqlgComparatorHolder().setPrecedingSelectOneLabel(key);
                         @SuppressWarnings("unchecked")
-                        List<Pair<Traversal.Admin<?, ?>, Comparator<?>>> comparators = ((OrderGlobalStep) step).getComparators();
+                        List<Pair<Traversal.Admin<?, ?>, Comparator<?>>> comparators = convertComparatorPair(((OrderGlobalStep) step).getComparators());
                         //get the step for the label
                         Optional<ReplacedStep<?, ?>> labeledReplacedStep = this.sqlgStep.getReplacedSteps().stream().filter(
                                 r -> {
@@ -682,18 +738,18 @@ public abstract class BaseStrategy {
                         }
                     } else if (previousStep instanceof OptionalStep) {
                         throw new RuntimeException("not yet implemented");
-                    } else if (previousStep instanceof ChooseStep) {
-                        //The order applies to the current replaced step and the previous ChooseStep
-                        @SuppressWarnings("unchecked")
-                        List<Pair<Traversal.Admin<?, ?>, Comparator<?>>> comparators = ((OrderGlobalStep) step).getComparators();
-                        this.currentReplacedStep.getSqlgComparatorHolder().setComparators(comparators);
-                        //add a label if the step does not yet have one and is not a leaf node
-                        if (this.currentReplacedStep.getLabels().isEmpty()) {
-                            this.currentReplacedStep.addLabel(pathCount.getValue() + BaseStrategy.PATH_LABEL_SUFFIX + BaseStrategy.SQLG_PATH_ORDER_RANGE_LABEL);
-                        }
+//                    } else if (previousStep instanceof ChooseStep) {
+//                        //The order applies to the current replaced step and the previous ChooseStep
+//                        @SuppressWarnings("unchecked")
+//                        List<Pair<Traversal.Admin<?, ?>, Comparator<?>>> comparators = convertComparatorPair(((OrderGlobalStep) step).getComparators());
+//                        this.currentReplacedStep.getSqlgComparatorHolder().setComparators(comparators);
+//                        //add a label if the step does not yet have one and is not a leaf node
+//                        if (this.currentReplacedStep.getLabels().isEmpty()) {
+//                            this.currentReplacedStep.addLabel(pathCount.getValue() + BaseStrategy.PATH_LABEL_SUFFIX + BaseStrategy.SQLG_PATH_ORDER_RANGE_LABEL);
+//                        }
                     } else {
                         @SuppressWarnings("unchecked")
-                        List<Pair<Traversal.Admin<?, ?>, Comparator<?>>> comparators = ((OrderGlobalStep) step).getComparators();
+                        List<Pair<Traversal.Admin<?, ?>, Comparator<?>>> comparators = convertComparatorPair(((OrderGlobalStep) step).getComparators());
                         this.currentReplacedStep.getSqlgComparatorHolder().setComparators(comparators);
                         //add a label if the step does not yet have one and is not a leaf node
                         if (this.currentReplacedStep.getLabels().isEmpty()) {
@@ -811,9 +867,9 @@ public abstract class BaseStrategy {
 
     private boolean optimizableOrderGlobalStep(OrderGlobalStep step) {
         @SuppressWarnings("unchecked")
-        List<Pair<Traversal.Admin<?, ?>, Comparator<?>>> comparators = step.getComparators();
+        List<Pair<Traversal.Admin<?, ?>, Comparator<?>>> comparators = convertComparatorPair(step.getComparators());
         for (Pair<Traversal.Admin<?, ?>, Comparator<?>> comparator : comparators) {
-            Traversal.Admin<?, ?> defaultGraphTraversal = comparator.getValue0();
+            Traversal.Admin<?, ?> defaultGraphTraversal = comparator.getLeft();
             List<CountGlobalStep> countGlobalSteps = TraversalHelper.getStepsOfAssignableClassRecursively(CountGlobalStep.class, defaultGraphTraversal);
             if (!countGlobalSteps.isEmpty()) {
                 return false;
@@ -822,11 +878,16 @@ public abstract class BaseStrategy {
             if (!lambdaMapSteps.isEmpty()) {
                 return false;
             }
-//            if (comparator.getValue1().toString().contains("$Lambda")) {
-//                return false;
-//            }
         }
         return true;
+    }
+
+    private List<Pair<Traversal.Admin<?, ?>, Comparator<?>>> convertComparatorPair(List<org.javatuples.Pair<Traversal.Admin<?, ?>, Comparator<?>>> comparators) {
+        List<Pair<Traversal.Admin<?, ?>, Comparator<?>>> result = new ArrayList<>();
+        for (org.javatuples.Pair<Traversal.Admin<?, ?>, Comparator<?>> comparator : comparators) {
+            result.add(Pair.of(comparator.getValue0(), comparator.getValue1()));
+        }
+        return result;
     }
 
     void handleRangeGlobalSteps(ListIterator<Step<?, ?>> iterator, MutableInt pathCount) {

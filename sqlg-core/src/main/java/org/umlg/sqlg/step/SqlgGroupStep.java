@@ -1,0 +1,56 @@
+package org.umlg.sqlg.step;
+
+import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
+import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
+import org.apache.tinkerpop.gremlin.process.traversal.util.FastNoSuchElementException;
+import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
+import org.umlg.sqlg.structure.SqlgElement;
+import org.umlg.sqlg.structure.SqlgGroupByTraverser;
+
+import java.util.*;
+
+/**
+ * @author Pieter Martin (https://github.com/pietermartin)
+ * Date: 2018/11/24
+ */
+public class SqlgGroupStep<K, V> extends SqlgAbstractStep<SqlgElement, Map<K, V>> {
+
+    private List<String> groupBy;
+    private String aggregateOn;
+    private boolean isPropertiesStep;
+
+    public SqlgGroupStep(Traversal.Admin traversal, List<String> groupBy, String aggregateOn, boolean isPropertiesStep) {
+        super(traversal);
+        this.groupBy = groupBy;
+        this.aggregateOn = aggregateOn;
+        this.isPropertiesStep  = isPropertiesStep;
+    }
+
+    @Override
+    protected Traverser.Admin<Map<K, V>> processNextStart() throws NoSuchElementException {
+        final SqlgGroupByTraverser<K, V> end = new SqlgGroupByTraverser<>(new HashMap<>());
+        while (this.starts.hasNext()) {
+            final Traverser.Admin<SqlgElement> start = this.starts.next();
+            SqlgElement sqlgElement = start.get();
+            if (this.groupBy.size() == 1) {
+                end.put(sqlgElement.value(this.groupBy.get(0)), sqlgElement.value(this.aggregateOn));
+            } else if (this.isPropertiesStep) {
+                end.put((K) IteratorUtils.list(sqlgElement.values(this.groupBy.toArray(new String[]{}))), sqlgElement.value(this.aggregateOn));
+            } else {
+                Map<String, List<?>> keyMap = new HashMap<>();
+                for (String s : this.groupBy) {
+                    List<?> keyValues = new ArrayList<>();
+                    keyValues.add(sqlgElement.value(s));
+                    keyMap.put(s, keyValues);
+                }
+                end.put((K)keyMap, sqlgElement.value(this.aggregateOn));
+            }
+        }
+        if (end.get().isEmpty()) {
+            throw FastNoSuchElementException.instance();
+        }
+        return end;
+    }
+
+
+}

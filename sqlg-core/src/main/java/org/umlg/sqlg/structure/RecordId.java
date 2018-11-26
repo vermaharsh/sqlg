@@ -447,6 +447,8 @@ public class RecordId implements KryoSerializable, Comparable {
         private ListOrderedSet<Comparable> identifiers;
 
         private ID(ListOrderedSet<Comparable> identifiers) {
+//            Preconditions.checkNotNull(identifiers, "identifiers may not be null when creating a RecordId");
+//            Preconditions.checkState(!identifiers.isEmpty(), "identifiers may not be empty when creating a RecordId");
             this.identifiers = identifiers;
         }
 

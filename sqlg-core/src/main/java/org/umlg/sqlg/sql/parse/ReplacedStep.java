@@ -47,7 +47,7 @@ public class ReplacedStep<S, E> {
     private final List<HasContainer> labelHasContainers = new ArrayList<>();
     private final List<AndOrHasContainer> andOrHasContainers = new ArrayList<>();
     private final SqlgComparatorHolder sqlgComparatorHolder = new SqlgComparatorHolder();
-    private final List<org.javatuples.Pair<Traversal.Admin<?, ?>, Comparator<?>>> dbComparators = new ArrayList<>();
+    private final List<Pair<Traversal.Admin<?, ?>, Comparator<?>>> dbComparators = new ArrayList<>();
     /**
      * range limitation if any
      */
@@ -66,6 +66,13 @@ public class ReplacedStep<S, E> {
      * restrict properties to only a subset if not null
      */
     private Set<String> restrictedProperties = null;
+
+    /**
+     * The reducing barrier's aggregate function. i.e. max, min, mean...
+     * The pair's left is the aggregate function and the right is the columns over which to aggregate.
+     */
+    private Pair<String, List<String>> aggregateFunction;
+    private List<String> groupBy;
 
     /**
      * If the query is a for sqlg_schema only. i.e. sqlgGraph.topology().V()....
@@ -119,7 +126,7 @@ public class ReplacedStep<S, E> {
         return this.sqlgComparatorHolder;
     }
 
-    public List<org.javatuples.Pair<Traversal.Admin<?, ?>, Comparator<?>>> getDbComparators() {
+    public List<Pair<Traversal.Admin<?, ?>, Comparator<?>>> getDbComparators() {
         return this.dbComparators;
     }
 
@@ -537,9 +544,10 @@ public class ReplacedStep<S, E> {
                 this.drop,
                 replacedStepDepth,
                 this.labels,
-                getRestrictedProperties()
+                this.restrictedProperties,
+                this.aggregateFunction,
+                this.groupBy
         );
-//        schemaTableTree.setRestrictedProperties(getRestrictedProperties());
         result.add(schemaTableTree);
     }
 
@@ -811,9 +819,25 @@ public class ReplacedStep<S, E> {
 		return this.restrictedProperties;
 	}
 
-	public void setRestrictedProperties(Set<String> restrictedColumns) {
+    public void setRestrictedProperties(Set<String> restrictedColumns) {
 		this.restrictedProperties = restrictedColumns;
 	}
+
+    public Pair<String, List<String>> getAggregateFunction() {
+        return aggregateFunction;
+    }
+
+    public void setAggregateFunction(Pair<String, List<String>> aggregateFunction) {
+        this.aggregateFunction = aggregateFunction;
+    }
+
+    public List<String> getGroupBy() {
+        return groupBy;
+    }
+
+    public void setGroupBy(List<String> groupBy) {
+        this.groupBy = groupBy;
+    }
 
     public void markForSqlgSchema() {
         this.isForSqlgSchema = true;

@@ -6,7 +6,6 @@ import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.tinkerpop.gremlin.process.traversal.*;
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.lambda.ElementValueTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.lambda.TokenTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.map.SelectOneStep;
@@ -27,6 +26,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static org.apache.tinkerpop.gremlin.structure.T.label;
@@ -56,7 +56,7 @@ public class SchemaTableTree {
     private List<HasContainer> hasContainers;
     private List<AndOrHasContainer> andOrHasContainers;
     private SqlgComparatorHolder sqlgComparatorHolder = new SqlgComparatorHolder();
-    private List<org.javatuples.Pair<Traversal.Admin<?, ?>, Comparator<?>>> dbComparators;
+    private List<Pair<Traversal.Admin<?, ?>, Comparator<?>>> dbComparators;
     //labels are immutable
     private Set<String> labels;
     private Set<String> realLabels;
@@ -110,8 +110,9 @@ public class SchemaTableTree {
 
     private Set<String> restrictedProperties = null;
     private boolean eagerLoad = false;
-    private ListOrderedSet<String> groupBy = null;
-    private String aggregateFunction = GraphTraversal.Symbols.max;
+
+    private List<String> groupBy = null;
+    private Pair<String, List<String>> aggregateFunction = null;
 
     public void loadEager() {
         this.eagerLoad = true;
@@ -150,7 +151,7 @@ public class SchemaTableTree {
                     List<HasContainer> hasContainers,
                     List<AndOrHasContainer> andOrHasContainers,
                     SqlgComparatorHolder sqlgComparatorHolder,
-                    List<org.javatuples.Pair<Traversal.Admin<?, ?>, Comparator<?>>> dbComparators,
+                    List<Pair<Traversal.Admin<?, ?>, Comparator<?>>> dbComparators,
                     SqlgRangeHolder sqlgRangeHolder,
                     STEP_TYPE stepType,
                     boolean emit,
@@ -159,7 +160,9 @@ public class SchemaTableTree {
                     boolean drop,
                     int replacedStepDepth,
                     Set<String> labels,
-                    Set<String> restrictedColumns
+                    Set<String> restrictedColumns,
+                    Pair<String, List<String>> aggregateFunction,
+                    List<String> groupBy
     ) {
         this.sqlgGraph = sqlgGraph;
         this.schemaTable = schemaTable;
@@ -178,19 +181,20 @@ public class SchemaTableTree {
         this.drop = drop;
         this.filteredAllTables = sqlgGraph.getTopology().getAllTables(Topology.SQLG_SCHEMA.equals(schemaTable.getSchema()), Schema.GLOBAL_UNIQUE_INDEX_SCHEMA.equals(schemaTable.getSchema()));
         setIdentifiersAndDistributionColumn();
-        this.hasIDPrimaryKey = this.identifiers.isEmpty();
+        this.hasIDPrimaryKey = this.identifiers.isEmpty() && (aggregateFunction == null);
         initializeAliasColumnNameMaps();
         this.restrictedProperties = restrictedColumns;
-        this.groupBy = ListOrderedSet.listOrderedSet(Arrays.asList("age"));
-        this.aggregateFunction = GraphTraversal.Symbols.max;
+        this.aggregateFunction = aggregateFunction;
+        this.groupBy = groupBy;
     }
 
     private void setIdentifiersAndDistributionColumn() {
+        Supplier<IllegalStateException> illegalStateExceptionSupplier = () -> new IllegalStateException(String.format("Label %s must ne present.", this.schemaTable.toString()));
         if (this.schemaTable.isVertexTable()) {
             VertexLabel vertexLabel = this.sqlgGraph.getTopology().getVertexLabel(
                     this.schemaTable.withOutPrefix().getSchema(),
                     this.schemaTable.withOutPrefix().getTable()
-            ).orElseThrow(() -> new IllegalStateException(String.format("Label %s must ne present.", this.schemaTable.toString())));
+            ).orElseThrow(illegalStateExceptionSupplier);
             this.identifiers = vertexLabel.getIdentifiers();
             if (vertexLabel.isDistributed()) {
                 this.distributionColumn = vertexLabel.getDistributionPropertyColumn().getName();
@@ -201,7 +205,7 @@ public class SchemaTableTree {
             EdgeLabel edgeLabel = this.sqlgGraph.getTopology().getEdgeLabel(
                     this.schemaTable.withOutPrefix().getSchema(),
                     this.schemaTable.withOutPrefix().getTable()
-            ).orElseThrow(() -> new IllegalStateException(String.format("Label %s must ne present.", this.schemaTable.toString())));
+            ).orElseThrow(illegalStateExceptionSupplier);
             this.identifiers = edgeLabel.getIdentifiers();
             if (edgeLabel.isDistributed()) {
                 this.distributionColumn = edgeLabel.getDistributionPropertyColumn().getName();
@@ -228,6 +232,8 @@ public class SchemaTableTree {
                 replacedStep.getSqlgComparatorHolder().getComparators(),
                 replacedStep.getSqlgRangeHolder(),
                 replacedStep.getRestrictedProperties(),
+                replacedStep.getAggregateFunction(),
+                replacedStep.getGroupBy(),
                 replacedStep.getDepth(),
                 isEdgeVertexStep,
                 replacedStep.isEmit(),
@@ -265,6 +271,8 @@ public class SchemaTableTree {
                 replacedStep.getSqlgComparatorHolder().getComparators(),
                 replacedStep.getSqlgRangeHolder(),
                 replacedStep.getRestrictedProperties(),
+                replacedStep.getAggregateFunction(),
+                replacedStep.getGroupBy(),
                 replacedStep.getDepth(),
                 false,
                 emit,
@@ -281,9 +289,11 @@ public class SchemaTableTree {
             List<HasContainer> hasContainers,
             List<AndOrHasContainer> andOrHasContainers,
             SqlgComparatorHolder sqlgComparatorHolder,
-            List<org.javatuples.Pair<Traversal.Admin<?, ?>, Comparator<?>>> dbComparators,
+            List<Pair<Traversal.Admin<?, ?>, Comparator<?>>> dbComparators,
             SqlgRangeHolder sqlgRangeHolder,
             Set<String> restrictedProperties,
+            Pair<String, List<String>> aggregateFunction,
+            List<String> groupBy,
             int stepDepth,
             boolean isEdgeVertexStep,
             boolean emit,
@@ -311,9 +321,17 @@ public class SchemaTableTree {
         schemaTableTree.optionalLeftJoin = leftJoin;
         schemaTableTree.drop = drop;
         schemaTableTree.restrictedProperties = restrictedProperties;
-        schemaTableTree.groupBy = ListOrderedSet.listOrderedSet(Arrays.asList("age"));
-        schemaTableTree.aggregateFunction = GraphTraversal.Symbols.max;
+        schemaTableTree.aggregateFunction = aggregateFunction;
+        schemaTableTree.groupBy = groupBy;
         return schemaTableTree;
+    }
+
+    public Pair<String, List<String>> getAggregateFunction() {
+        return aggregateFunction;
+    }
+
+    public List<String> getGroupBy() {
+        return groupBy;
     }
 
     private Map<String, Map<String, PropertyType>> getFilteredAllTables() {
@@ -1029,7 +1047,7 @@ public class SchemaTableTree {
                 //https://jira.mariadb.org/browse/MDEV-16771
                 //Need to use a randomized name here else the temp table gets reused within the same transaction.
                 SecureRandom random = new SecureRandom();
-                byte bytes[] = new byte[6];
+                byte[] bytes = new byte[6];
                 random.nextBytes(bytes);
                 String tmpTableIdentified = Base64.getEncoder().encodeToString(bytes);
                 sqlgGraph.tx().normalBatchModeOn();
@@ -1120,6 +1138,13 @@ public class SchemaTableTree {
             for (SchemaTableTree schemaTableTree : distinctQueryStack) {
                 singlePathSql.append(schemaTableTree.toOrderByClause(sqlgGraph, mutableOrderBy, -1));
                 singlePathSql.append(schemaTableTree.toRangeClause(sqlgGraph, mutableOrderBy));
+            }
+        }
+
+        //group by
+        for (SchemaTableTree schemaTableTree : distinctQueryStack) {
+            if (schemaTableTree.groupBy != null && !schemaTableTree.groupBy.isEmpty()) {
+                singlePathSql.append(schemaTableTree.toGroupByClause(sqlgGraph));
             }
         }
 
@@ -1337,15 +1362,15 @@ public class SchemaTableTree {
 
     private String toOrderByClause(SqlgGraph sqlgGraph, MutableBoolean printedOrderBy, int counter) {
         String result = "";
-        for (org.javatuples.Pair<Traversal.Admin<?, ?>, Comparator<?>> comparator : this.getDbComparators()) {
+        for (Pair<Traversal.Admin<?, ?>, Comparator<?>> comparator : this.getDbComparators()) {
             if (!printedOrderBy.booleanValue()) {
                 printedOrderBy.setTrue();
                 result += "\nORDER BY\n\t";
             } else {
                 result += ",\n\t";
             }
-            if (comparator.getValue1() instanceof ElementValueComparator) {
-                ElementValueComparator<?> elementValueComparator = (ElementValueComparator<?>) comparator.getValue1();
+            if (comparator.getRight() instanceof ElementValueComparator) {
+                ElementValueComparator<?> elementValueComparator = (ElementValueComparator<?>) comparator.getRight();
                 String prefix = this.getSchemaTable().getSchema();
                 prefix += SchemaTableTree.ALIAS_SEPARATOR;
                 prefix += this.getSchemaTable().getTable();
@@ -1368,9 +1393,9 @@ public class SchemaTableTree {
                 }
 
                 //TODO redo this via SqlgOrderGlobalStep
-            } else if ((comparator.getValue0() instanceof ElementValueTraversal<?> || comparator.getValue0() instanceof TokenTraversal<?, ?>)
-                    && comparator.getValue1() instanceof Order) {
-                Traversal.Admin<?, ?> t = comparator.getValue0();
+            } else if ((comparator.getLeft() instanceof ElementValueTraversal<?> || comparator.getLeft() instanceof TokenTraversal<?, ?>)
+                    && comparator.getRight() instanceof Order) {
+                Traversal.Admin<?, ?> t = comparator.getLeft();
                 String prefix = String.valueOf(this.stepDepth);
                 prefix += SchemaTableTree.ALIAS_SEPARATOR;
                 prefix += this.reducedLabels();
@@ -1406,21 +1431,21 @@ public class SchemaTableTree {
                     alias = "a" + counter + "." + sqlgGraph.getSqlDialect().maybeWrapInQoutes(rawAlias);
                 }
                 result += " " + alias;
-                if (comparator.getValue1() == Order.incr) {
+                if (comparator.getRight() == Order.incr) {
                     result += " ASC";
-                } else if (comparator.getValue1() == Order.asc) {
+                } else if (comparator.getRight() == Order.asc) {
                     result += " ASC";
-                } else if (comparator.getValue1() == Order.decr) {
+                } else if (comparator.getRight() == Order.decr) {
                     result += " DESC";
-                } else if (comparator.getValue1() == Order.desc) {
+                } else if (comparator.getRight() == Order.desc) {
                     result += " DESC";
                 } else {
-                    throw new RuntimeException("Only handle Order.incr and Order.decr, not " + comparator.getValue1().toString());
+                    throw new RuntimeException("Only handle Order.incr and Order.decr, not " + comparator.getRight().toString());
                 }
             } else {
-                Preconditions.checkState(comparator.getValue0().getSteps().size() == 1, "toOrderByClause expects a TraversalComparator to have exactly one step!");
-                Preconditions.checkState(comparator.getValue0().getSteps().get(0) instanceof SelectOneStep, "toOrderByClause expects a TraversalComparator to have exactly one SelectOneStep!");
-                SelectOneStep<?, ?> selectOneStep = (SelectOneStep<?, ?>) comparator.getValue0().getSteps().get(0);
+                Preconditions.checkState(comparator.getLeft().getSteps().size() == 1, "toOrderByClause expects a TraversalComparator to have exactly one step!");
+                Preconditions.checkState(comparator.getLeft().getSteps().get(0) instanceof SelectOneStep, "toOrderByClause expects a TraversalComparator to have exactly one SelectOneStep!");
+                SelectOneStep<?, ?> selectOneStep = (SelectOneStep<?, ?>) comparator.getLeft().getSteps().get(0);
                 Preconditions.checkState(selectOneStep.getScopeKeys().size() == 1, "toOrderByClause expects the selectOneStep to have one scopeKey!");
                 Preconditions.checkState(selectOneStep.getLocalChildren().size() == 1, "toOrderByClause expects the selectOneStep to have one traversal!");
                 Traversal.Admin<?, ?> t = (Traversal.Admin<?, ?>) selectOneStep.getLocalChildren().get(0);
@@ -1474,13 +1499,13 @@ public class SchemaTableTree {
                     alias = "a" + selectSchemaTableTree.stepDepth + "." + sqlgGraph.getSqlDialect().maybeWrapInQoutes(rawAlias);
                 }
                 result += " " + alias;
-                if (comparator.getValue1() == Order.incr) {
+                if (comparator.getRight() == Order.incr) {
                     result += " ASC";
-                } else if (comparator.getValue1() == Order.asc) {
+                } else if (comparator.getRight() == Order.asc) {
                     result += " ASC";
-                } else if (comparator.getValue1() == Order.decr) {
+                } else if (comparator.getRight() == Order.decr) {
                     result += " DESC";
-                } else if (comparator.getValue1() == Order.desc) {
+                } else if (comparator.getRight() == Order.desc) {
                     result += " DESC";
                 } else {
                     throw new RuntimeException("Only handle Order.incr and Order.decr, not " + comparator.toString());
@@ -1505,6 +1530,15 @@ public class SchemaTableTree {
             }
         }
         return "";
+    }
+
+    private String toGroupByClause(SqlgGraph sqlgGraph) {
+        return "\nGROUP BY\n\t" + this.groupBy.stream()
+                .map(a -> sqlgGraph.getSqlDialect().maybeWrapInQoutes(this.schemaTable.getSchema()) + "." +
+                        sqlgGraph.getSqlDialect().maybeWrapInQoutes(this.schemaTable.getTable()) + "." +
+                        sqlgGraph.getSqlDialect().maybeWrapInQoutes(a))
+                .reduce((a, b) -> a + ",\n\t" + b)
+                .get();
     }
 
     private SchemaTableTree findSelectSchemaTable(String select) {
@@ -1819,7 +1853,24 @@ public class SchemaTableTree {
             if (!identifiers.contains(propertyTypeMapEntry.getKey())) {
                 if (lastSchemaTableTree.shouldSelectProperty(propertyTypeMapEntry.getKey())) {
                     String alias = lastSchemaTableTree.calculateAliasPropertyName(propertyTypeMapEntry.getKey());
-                    cols.add(lastSchemaTableTree, propertyTypeMapEntry.getKey(), alias);
+
+                    if (lastSchemaTableTree.aggregateFunction == null) {
+                        cols.add(lastSchemaTableTree, propertyTypeMapEntry.getKey(), alias, null);
+                    } else {
+                        if (lastSchemaTableTree.getAggregateFunction().getRight().isEmpty() ||
+                                lastSchemaTableTree.getAggregateFunction().getRight().contains(propertyTypeMapEntry.getKey())) {
+
+                            cols.add(
+                                    lastSchemaTableTree,
+                                    propertyTypeMapEntry.getKey(),
+                                    alias,
+                                    lastSchemaTableTree.aggregateFunction.getLeft()
+                            );
+                            
+                        } else {
+                            cols.add(lastSchemaTableTree, propertyTypeMapEntry.getKey(), alias, null);
+                        }
+                    }
                     for (String postFix : propertyTypeMapEntry.getValue().getPostFixes()) {
                         alias = lastSchemaTableTree.calculateAliasPropertyName(propertyTypeMapEntry.getKey() + postFix);
                         cols.add(lastSchemaTableTree, propertyTypeMapEntry.getKey() + postFix, alias);
@@ -2324,11 +2375,11 @@ public class SchemaTableTree {
                     toRemove.add(hasContainer);
                 }
             }
-            if (Contains.without.equals(hasContainer.getBiPredicate())){
-            	Object o=hasContainer.getValue();
-            	if (o instanceof Collection && ((Collection<?>)o).size()==0) {
-            		toRemove.add(hasContainer);
-            	}
+            if (Contains.without.equals(hasContainer.getBiPredicate())) {
+                Object o = hasContainer.getValue();
+                if (o instanceof Collection && ((Collection<?>) o).size() == 0) {
+                    toRemove.add(hasContainer);
+                }
             }
         }
         schemaTableTree.hasContainers.removeAll(toRemove);
@@ -2478,7 +2529,7 @@ public class SchemaTableTree {
         return this.sqlgComparatorHolder;
     }
 
-    public List<org.javatuples.Pair<Traversal.Admin<?, ?>, Comparator<?>>> getDbComparators() {
+    public List<Pair<Traversal.Admin<?, ?>, Comparator<?>>> getDbComparators() {
         return this.dbComparators;
     }
 
@@ -2719,14 +2770,14 @@ public class SchemaTableTree {
             return;
         }
         // we use aliases for ordering, so we need the property in the select clause
-        for (org.javatuples.Pair<Traversal.Admin<?, ?>, Comparator<?>> comparator : this.getDbComparators()) {
+        for (Pair<Traversal.Admin<?, ?>, Comparator<?>> comparator : this.getDbComparators()) {
 
-            if (comparator.getValue1() instanceof ElementValueComparator) {
-                this.restrictedProperties.add(((ElementValueComparator<?>) comparator.getValue1()).getPropertyKey());
+            if (comparator.getRight() instanceof ElementValueComparator) {
+                this.restrictedProperties.add(((ElementValueComparator<?>) comparator.getRight()).getPropertyKey());
 
-            } else if ((comparator.getValue0() instanceof ElementValueTraversal<?> || comparator.getValue0() instanceof TokenTraversal<?, ?>)
-                    && comparator.getValue1() instanceof Order) {
-                Traversal.Admin<?, ?> t = comparator.getValue0();
+            } else if ((comparator.getLeft() instanceof ElementValueTraversal<?> || comparator.getLeft() instanceof TokenTraversal<?, ?>)
+                    && comparator.getRight() instanceof Order) {
+                Traversal.Admin<?, ?> t = comparator.getLeft();
                 String key;
                 if (t instanceof ElementValueTraversal) {
                     ElementValueTraversal<?> elementValueTraversal = (ElementValueTraversal<?>) t;
