@@ -238,6 +238,9 @@ public class SqlgGraphStep<S, E extends SqlgElement> extends GraphStep implement
                 }
             }
         }
+        if (this.replacedStepTree.hasAggregateFunction() && isForMultipleQueries() && !this.replacedStepTree.getAggregateFunction().getLeft().equals("mean")) {
+            System.out.println("halo max");
+        }
         return rootSchemaTableTrees;
     }
 

@@ -87,7 +87,7 @@ public class SchemaTableTree {
     private Map<String, Pair<String, PropertyType>> columnNamePropertyName;
     private String idProperty;
     private String labeledAliasId;
-    private final boolean hasIDPrimaryKey;
+    private boolean hasIDPrimaryKey;
     private ListOrderedSet<String> identifiers;
     private String distributionColumn;
 
@@ -181,7 +181,7 @@ public class SchemaTableTree {
         this.drop = drop;
         this.filteredAllTables = sqlgGraph.getTopology().getAllTables(Topology.SQLG_SCHEMA.equals(schemaTable.getSchema()), Schema.GLOBAL_UNIQUE_INDEX_SCHEMA.equals(schemaTable.getSchema()));
         setIdentifiersAndDistributionColumn();
-        this.hasIDPrimaryKey = this.identifiers.isEmpty() && (aggregateFunction == null);
+        this.hasIDPrimaryKey = this.identifiers.isEmpty();
         initializeAliasColumnNameMaps();
         this.restrictedProperties = restrictedColumns;
         this.aggregateFunction = aggregateFunction;
@@ -323,11 +323,16 @@ public class SchemaTableTree {
         schemaTableTree.restrictedProperties = restrictedProperties;
         schemaTableTree.aggregateFunction = aggregateFunction;
         schemaTableTree.groupBy = groupBy;
+        schemaTableTree.hasIDPrimaryKey = schemaTableTree.identifiers.isEmpty();
         return schemaTableTree;
     }
 
     public Pair<String, List<String>> getAggregateFunction() {
         return aggregateFunction;
+    }
+
+    public boolean hasAggregateFunction() {
+        return this.aggregateFunction != null;
     }
 
     public List<String> getGroupBy() {
@@ -385,6 +390,26 @@ public class SchemaTableTree {
 
     public boolean isEmit() {
         return emit;
+    }
+
+    public void setRestrictedProperties(Set<String> restrictedProperties) {
+        this.restrictedProperties = restrictedProperties;
+    }
+
+    public void setGroupBy(List<String> groupBy) {
+        this.groupBy = groupBy;
+    }
+
+    public void setAggregateFunction(Pair<String, List<String>> aggregateFunction) {
+        this.aggregateFunction = aggregateFunction;
+    }
+
+    public void setHasIDPrimaryKey(boolean hasIDPrimaryKey) {
+        this.hasIDPrimaryKey = hasIDPrimaryKey;
+    }
+
+    public boolean isHasIDPrimaryKey() {
+        return this.hasIDPrimaryKey;
     }
 
     public boolean isOptionalLeftJoin() {
@@ -543,8 +568,7 @@ public class SchemaTableTree {
         LinkedList<SchemaTableTree> stack = current.constructQueryStackFromLeaf();
         //left joins but not the leave nodes as they are already present in the main sql result set.
         if (current.isOptionalLeftJoin() && (current.getStepDepth() < current.getReplacedStepDepth())) {
-            Set<SchemaTableTree> leftyChildren = new HashSet<>();
-            leftyChildren.addAll(current.children);
+            Set<SchemaTableTree> leftyChildren = new HashSet<>(current.children);
             Pair<LinkedList<SchemaTableTree>, Set<SchemaTableTree>> p = Pair.of(stack, leftyChildren);
             result.add(p);
         }
@@ -1142,10 +1166,9 @@ public class SchemaTableTree {
         }
 
         //group by
-        for (SchemaTableTree schemaTableTree : distinctQueryStack) {
-            if (schemaTableTree.groupBy != null && !schemaTableTree.groupBy.isEmpty()) {
-                singlePathSql.append(schemaTableTree.toGroupByClause(sqlgGraph));
-            }
+        SchemaTableTree lastSchemaTableTree = distinctQueryStack.getLast();
+        if (lastSchemaTableTree.groupBy != null && !lastSchemaTableTree.groupBy.isEmpty() && !lastSchemaTableTree.groupBy.get(0).equals(T.label.getAccessor())) {
+            singlePathSql.append(lastSchemaTableTree.toGroupByClause(sqlgGraph));
         }
 
         currentColumnList.indexColumns(startIndexColumns);
@@ -1633,7 +1656,7 @@ public class SchemaTableTree {
             Preconditions.checkState(previousSchemaTableTree.getSchemaTable().getTable().startsWith(VERTEX_PREFIX), "Expected table to start with %s", VERTEX_PREFIX);
             String previousRawLabel = previousSchemaTableTree.getSchemaTable().getTable().substring(VERTEX_PREFIX.length());
             if (firstSchemaTableTree.direction == Direction.OUT) {
-                if (previousSchemaTableTree.hasIDPrimaryKey) {
+                if (previousSchemaTableTree.hasIDPrimaryKey && !previousSchemaTableTree.hasAggregateFunction()) {
                     columnList.add(firstSchemaTable,
                             previousSchemaTableTree.getSchemaTable().getSchema() + "." + previousRawLabel + Topology.OUT_VERTEX_COLUMN_END,
                             previousSchemaTableTree.stepDepth,
@@ -1655,7 +1678,7 @@ public class SchemaTableTree {
                     }
                 }
             } else {
-                if (previousSchemaTableTree.hasIDPrimaryKey) {
+                if (previousSchemaTableTree.hasIDPrimaryKey && !previousSchemaTableTree.hasAggregateFunction()) {
                     columnList.add(firstSchemaTable,
                             previousSchemaTableTree.getSchemaTable().getSchema() + "." +
                                     previousRawLabel + Topology.IN_VERTEX_COLUMN_END,
@@ -1681,7 +1704,7 @@ public class SchemaTableTree {
             }
         } else if (previousSchemaTableTree != null && firstSchemaTable.getTable().startsWith(VERTEX_PREFIX)) {
             //if user defined identifiers then the regular properties make up the ids.
-            if (firstSchemaTableTree.hasIDPrimaryKey) {
+            if (firstSchemaTableTree.hasIDPrimaryKey && !firstSchemaTableTree.hasAggregateFunction()) {
                 columnList.add(firstSchemaTable, Topology.ID, firstSchemaTableTree.stepDepth, firstSchemaTableTree.calculatedAliasId());
             }
             printedId = firstSchemaTable == lastSchemaTable;
@@ -1692,7 +1715,7 @@ public class SchemaTableTree {
 
             String nextRawLabel = nextSchemaTableTree.getSchemaTable().getTable().substring(VERTEX_PREFIX.length());
             if (nextSchemaTableTree.isEdgeVertexStep()) {
-                if (nextSchemaTableTree.hasIDPrimaryKey) {
+                if (nextSchemaTableTree.hasIDPrimaryKey && !nextSchemaTableTree.hasAggregateFunction()) {
                     columnList.add(lastSchemaTable,
                             nextSchemaTableTree.getSchemaTable().getSchema() + "." +
                                     nextRawLabel + (nextSchemaTableTree.direction == Direction.OUT ? Topology.OUT_VERTEX_COLUMN_END : Topology.IN_VERTEX_COLUMN_END),
@@ -1723,7 +1746,7 @@ public class SchemaTableTree {
                 }
                 constructAllLabeledFromClause(distinctQueryStack, columnList);
             } else {
-                if (nextSchemaTableTree.hasIDPrimaryKey) {
+                if (nextSchemaTableTree.hasIDPrimaryKey && !nextSchemaTableTree.hasAggregateFunction()) {
                     columnList.add(lastSchemaTable,
                             nextSchemaTableTree.getSchemaTable().getSchema() + "." + nextRawLabel + (nextSchemaTableTree.direction == Direction.OUT ? Topology.IN_VERTEX_COLUMN_END : Topology.OUT_VERTEX_COLUMN_END),
                             nextSchemaTableTree.stepDepth,
@@ -1752,7 +1775,7 @@ public class SchemaTableTree {
                 constructEmitEdgeIdFromClause(distinctQueryStack, columnList);
             }
         } else if (nextSchemaTableTree != null && lastSchemaTable.getTable().startsWith(VERTEX_PREFIX)) {
-            if (lastSchemaTableTree.hasIDPrimaryKey) {
+            if (lastSchemaTableTree.hasIDPrimaryKey && !lastSchemaTableTree.hasAggregateFunction()) {
                 columnList.add(lastSchemaTable,
                         Topology.ID,
                         nextSchemaTableTree.stepDepth,
@@ -1773,12 +1796,12 @@ public class SchemaTableTree {
         //The last schemaTableTree in the call stack has no nextSchemaTableTree.
         //This last element's properties need to be returned, including all labeled properties for this path
         if (nextSchemaTableTree == null) {
-            if (!printedId && lastSchemaTableTree.hasIDPrimaryKey) {
+            if (!printedId && lastSchemaTableTree.hasIDPrimaryKey && !lastSchemaTableTree.hasAggregateFunction()) {
                 printIDFromClauseFor(lastSchemaTableTree, columnList);
             }
             printFromClauseFor(lastSchemaTableTree, columnList);
 
-            if (lastSchemaTableTree.getSchemaTable().isEdgeTable()) {
+            if (lastSchemaTableTree.getSchemaTable().isEdgeTable() && !lastSchemaTableTree.hasAggregateFunction()) {
                 printEdgeInOutVertexIdFromClauseFor(sqlgGraph, firstSchemaTableTree, lastSchemaTableTree, columnList);
             }
 
@@ -1791,11 +1814,11 @@ public class SchemaTableTree {
     private static void constructAllLabeledFromClause(LinkedList<SchemaTableTree> distinctQueryStack, ColumnList cols) {
         List<SchemaTableTree> labeled = distinctQueryStack.stream().filter(d -> !d.getLabels().isEmpty()).collect(Collectors.toList());
         for (SchemaTableTree schemaTableTree : labeled) {
-            if (schemaTableTree.hasIDPrimaryKey) {
+            if (schemaTableTree.hasIDPrimaryKey && !schemaTableTree.hasAggregateFunction()) {
                 printLabeledIDFromClauseFor(schemaTableTree, cols);
             }
             printLabeledFromClauseFor(schemaTableTree, cols);
-            if (schemaTableTree.getSchemaTable().isEdgeTable()) {
+            if (schemaTableTree.getSchemaTable().isEdgeTable() && !schemaTableTree.hasAggregateFunction()) {
                 schemaTableTree.printLabeledEdgeInOutVertexIdFromClauseFor(cols);
             }
         }
@@ -2123,7 +2146,7 @@ public class SchemaTableTree {
             joinSql.append(".");
             joinSql.append(sqlgGraph.getSqlDialect().maybeWrapInQoutes(labelToTravers.getTable()));
             joinSql.append(" ON ");
-            if (fromSchemaTableTree.isHasIDPrimaryKey()) {
+            if (fromSchemaTableTree.hasIDPrimaryKey) {
                 joinSql.append(sqlgGraph.getSqlDialect().maybeWrapInQoutes(fromSchemaTable.getSchema()));
                 joinSql.append(".");
                 joinSql.append(sqlgGraph.getSqlDialect().maybeWrapInQoutes(fromSchemaTable.getTable()));
@@ -2184,7 +2207,7 @@ public class SchemaTableTree {
             joinSql.append(".");
             joinSql.append(sqlgGraph.getSqlDialect().maybeWrapInQoutes(labelToTravers.getTable()));
             joinSql.append(" ON ");
-            if (labelToTraversTree.isHasIDPrimaryKey()) {
+            if (labelToTraversTree.hasIDPrimaryKey) {
                 joinSql.append(sqlgGraph.getSqlDialect().maybeWrapInQoutes(fromSchemaTable.getSchema()));
                 joinSql.append(".");
                 joinSql.append(sqlgGraph.getSqlDialect().maybeWrapInQoutes(fromSchemaTable.getTable()));
@@ -2731,9 +2754,6 @@ public class SchemaTableTree {
         return this.drop;
     }
 
-    public boolean isHasIDPrimaryKey() {
-        return this.hasIDPrimaryKey;
-    }
 
     public ListOrderedSet<String> getIdentifiers() {
         return this.identifiers;

@@ -155,4 +155,67 @@ public class TestReducingBarrierStep extends BaseTest {
             put("name", Arrays.asList("C"));
         }}), 0);
     }
+
+    @Test
+    public void testGroupOverOnePropertyWithJoin() {
+        Vertex person = this.sqlgGraph.addVertex(T.label, "Person", "name", "A");
+        Vertex address1 = this.sqlgGraph.addVertex(T.label, "Address", "name", "A", "year", 2);
+        Vertex address2 = this.sqlgGraph.addVertex(T.label, "Address", "name", "A", "year", 4);
+        Vertex address3 = this.sqlgGraph.addVertex(T.label, "Address", "name", "C", "year", 6);
+        Vertex address4 = this.sqlgGraph.addVertex(T.label, "Address", "name", "D", "year", 8);
+        Vertex address5 = this.sqlgGraph.addVertex(T.label, "Address", "name", "D", "year", 7);
+        Vertex address6 = this.sqlgGraph.addVertex(T.label, "Address", "name", "D", "year", 6);
+        person.addEdge("livesAt", address1);
+        person.addEdge("livesAt", address2);
+        person.addEdge("livesAt", address3);
+        person.addEdge("livesAt", address4);
+        person.addEdge("livesAt", address5);
+        person.addEdge("livesAt", address6);
+        this.sqlgGraph.tx().commit();
+
+        Traversal<Vertex, Map<String, Integer>> traversal = this.sqlgGraph.traversal()
+                .V().hasLabel("Person")
+                .out("livesAt")
+                .<String, Integer>group()
+                .by("name")
+                .by(__.values("year").max());
+
+        printTraversalForm(traversal);
+
+        Map<String, Integer> result = traversal.next();
+        Assert.assertFalse(traversal.hasNext());
+        Assert.assertEquals(3, result.size());
+        Assert.assertTrue(result.containsKey("A"));
+        Assert.assertTrue(result.containsKey("C"));
+        Assert.assertTrue(result.containsKey("D"));
+        Assert.assertEquals(4, result.get("A"), 0);
+        Assert.assertEquals(6, result.get("C"), 0);
+        Assert.assertEquals(8, result.get("D"), 0);
+    }
+
+    @Test
+    public void testGroupByLabel() {
+        this.sqlgGraph.addVertex(T.label, "Person", "name", "A", "age", 10);
+        this.sqlgGraph.addVertex(T.label, "Person", "name", "B", "age", 20);
+        this.sqlgGraph.addVertex(T.label, "Person", "name", "C", "age", 100);
+        this.sqlgGraph.addVertex(T.label, "Person", "name", "D", "age", 40);
+
+        this.sqlgGraph.addVertex(T.label, "Dog", "name", "A", "age", 10);
+        this.sqlgGraph.addVertex(T.label, "Dog", "name", "B", "age", 200);
+        this.sqlgGraph.addVertex(T.label, "Dog", "name", "C", "age", 30);
+        this.sqlgGraph.addVertex(T.label, "Dog", "name", "D", "age", 40);
+
+        this.sqlgGraph.tx().commit();
+
+        Traversal<Vertex, Map<String, Integer>> traversal = this.sqlgGraph.traversal().V().<String, Integer>group().by(T.label).by(__.values("age").max());
+        printTraversalForm(traversal);
+
+        Map<String, Integer> result = traversal.next();
+        Assert.assertFalse(traversal.hasNext());
+        Assert.assertEquals(2, result.size());
+        Assert.assertTrue(result.containsKey("Person"));
+        Assert.assertTrue(result.containsKey("Dog"));
+        Assert.assertEquals(100, result.get("Person"), 0);
+        Assert.assertEquals(200, result.get("Dog"), 0);
+    }
 }

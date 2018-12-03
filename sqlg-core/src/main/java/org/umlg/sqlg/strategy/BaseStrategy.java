@@ -9,6 +9,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.DefaultGraphTrav
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.lambda.ElementValueTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.lambda.LoopTraversal;
+import org.apache.tinkerpop.gremlin.process.traversal.lambda.TokenTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.step.HasContainerHolder;
 import org.apache.tinkerpop.gremlin.process.traversal.step.branch.ChooseStep;
 import org.apache.tinkerpop.gremlin.process.traversal.step.branch.LocalStep;
@@ -223,7 +224,7 @@ public abstract class BaseStrategy {
 
     private boolean handleMaxGlobalStep(ReplacedStep<?, ?> replacedStep, Step<?, ?> step) {
 //        MaxGlobalStep<?> maxGlobalStep = (MaxGlobalStep<?>) step;
-//        replacedStep.setAggregateFunction(Pair.of(GraphTraversal.Symbols.max, Collections.emptyList()));
+        replacedStep.setAggregateFunction(Pair.of(GraphTraversal.Symbols.max, Collections.emptyList()));
 //        this.traversal.removeStep(step);
         return false;
     }
@@ -234,35 +235,29 @@ public abstract class BaseStrategy {
         if (localChildren.size() == 2) {
             Traversal.Admin<?, ?> groupByTraversal = localChildren.get(0);
             Traversal.Admin<?, ?> aggregateOverTraversal = localChildren.get(1);
-//            List<String> groupBy = new ArrayList<>();
             boolean isPropertiesStep = false;
             List<String> groupByKeys  = new ArrayList<>();
             if (groupByTraversal instanceof ElementValueTraversal) {
                 ElementValueTraversal<?> elementValueTraversal = (ElementValueTraversal) groupByTraversal;
                 groupByKeys.add(elementValueTraversal.getPropertyKey());
-//                if (replacedStep.getRestrictedProperties() == null) {
-//                    replacedStep.setRestrictedProperties(new HashSet<>(Collections.singleton(elementValueTraversal.getPropertyKey())));
-//                } else {
-//                    replacedStep.getRestrictedProperties().add(elementValueTraversal.getPropertyKey());
-//                }
-//                replacedStep.setGroupBy(Collections.singletonList(elementValueTraversal.getPropertyKey()));
-//                groupBy.add(elementValueTraversal.getPropertyKey());
             } else if (groupByTraversal instanceof DefaultGraphTraversal) {
                 List<Step> groupBySteps = groupByTraversal.getSteps();
                 if ((groupBySteps.get(0) instanceof PropertiesStep) || (groupBySteps.get(0) instanceof PropertyMapStep)) {
                     isPropertiesStep = groupBySteps.get(0) instanceof PropertiesStep;
                     List<String> groupBys = getRestrictedProperties(groupBySteps.get(0));
                     groupByKeys.addAll(groupBys);
-//                    groupBy.addAll(groupBys);
-//                    if (replacedStep.getRestrictedProperties() == null) {
-//                        replacedStep.setRestrictedProperties(new HashSet<>(groupBys));
-//                    } else {
-//                        replacedStep.getRestrictedProperties().addAll(groupBys);
-//                    }
-//                    replacedStep.setGroupBy(groupBy);
                 } else {
                     return false;
                 }
+            } else if (groupByTraversal instanceof TokenTraversal){
+                TokenTraversal<?, ?> tokenTraversal = (TokenTraversal) groupByTraversal;
+                if (tokenTraversal.getToken() == T.label) {
+                    groupByKeys.add(T.label.getAccessor());
+                } else {
+                    return false;
+                }
+            } else {
+                return false;
             }
             List<Step> valueTraversalSteps = aggregateOverTraversal.getSteps();
             if (valueTraversalSteps.size() == 2) {

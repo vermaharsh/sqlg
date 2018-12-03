@@ -192,7 +192,7 @@ public class SqlgUtil {
             if (!schemaTableTree.getLabels().isEmpty()) {
                 E sqlgElement = null;
                 boolean resultSetWasNull;
-                if (schemaTableTree.isHasIDPrimaryKey()) {
+                if (schemaTableTree.isHasIDPrimaryKey() && !schemaTableTree.hasAggregateFunction()) {
                     String idProperty = schemaTableTree.labeledAliasId();
                     Integer columnCount = idColumnCountMap.get(idProperty);
                     Long id = resultSet.getLong(columnCount);

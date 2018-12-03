@@ -824,7 +824,11 @@ public class ReplacedStep<S, E> {
 	}
 
     public Pair<String, List<String>> getAggregateFunction() {
-        return aggregateFunction;
+        return this.aggregateFunction;
+    }
+
+    public boolean hasAggregateFunction() {
+        return this.aggregateFunction != null;
     }
 
     public void setAggregateFunction(Pair<String, List<String>> aggregateFunction) {

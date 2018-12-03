@@ -21,7 +21,8 @@ public class GremlinParser {
 
     public Set<SchemaTableTree> parse(ReplacedStepTree replacedStepTree) {
         ReplacedStep<?, ?> startReplacedStep = replacedStepTree.root().getReplacedStep();
-        Preconditions.checkState(startReplacedStep.isGraphStep(), "Step must be a GraphStep");
+        Preconditions.checkState(startReplacedStep.isGraphStep(), "Expected GraphStep, found %s", startReplacedStep.getStep().getClass().getName());
+
         Set<SchemaTableTree> rootSchemaTableTrees = startReplacedStep.getRootSchemaTableTrees(this.sqlgGraph, replacedStepTree.getDepth());
         Set<SchemaTableTree> toRemove = new HashSet<>();
         for (SchemaTableTree rootSchemaTableTree : rootSchemaTableTrees) {
@@ -52,7 +53,7 @@ public class GremlinParser {
      */
     public SchemaTableTree parse(SchemaTable schemaTable, ReplacedStepTree replacedStepTree) {
         ReplacedStep<?, ?> rootReplacedStep = replacedStepTree.root().getReplacedStep();
-        Preconditions.checkArgument(!rootReplacedStep.isGraphStep(), "Expected VertexStep, found GraphStep");
+        Preconditions.checkArgument(!rootReplacedStep.isGraphStep(), "Expected VertexStep");
 
         Set<SchemaTableTree> schemaTableTrees = new HashSet<>();
         //replacedSteps contains a fake label representing the incoming vertex for the SqlgVertexStepStrategy.
@@ -61,6 +62,10 @@ public class GremlinParser {
         rootSchemaTableTree.setEmit(rootReplacedStep.isEmit());
         rootSchemaTableTree.setUntilFirst(rootReplacedStep.isUntilFirst());
         rootSchemaTableTree.initializeAliasColumnNameMaps();
+        rootSchemaTableTree.setRestrictedProperties(rootReplacedStep.getRestrictedProperties());
+        rootSchemaTableTree.setAggregateFunction(rootReplacedStep.getAggregateFunction());
+        rootSchemaTableTree.setGroupBy(rootReplacedStep.getGroupBy());
+
         rootSchemaTableTree.setStepType(schemaTable.isVertexTable() ? SchemaTableTree.STEP_TYPE.VERTEX_STEP : SchemaTableTree.STEP_TYPE.EDGE_VERTEX_STEP);
         schemaTableTrees.add(rootSchemaTableTree);
         replacedStepTree.walkReplacedSteps(schemaTableTrees);

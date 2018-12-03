@@ -103,6 +103,18 @@ public class ReplacedStepTree {
         }
     }
 
+    public boolean hasAggregateFunction() {
+        List<ReplacedStep<?,?>> replacedSteps = linearPathToLeafNode();
+        ReplacedStep<?, ?> replacedStep = replacedSteps.get(replacedSteps.size() - 1);
+        return replacedStep.hasAggregateFunction();
+    }
+
+    public Pair<String, List<String>> getAggregateFunction() {
+        List<ReplacedStep<?,?>> replacedSteps = linearPathToLeafNode();
+        ReplacedStep<?, ?> replacedStep = replacedSteps.get(replacedSteps.size() - 1);
+        return replacedStep.getAggregateFunction();
+    }
+
     public boolean hasRange() {
         List<ReplacedStep<?,?>> replacedSteps = linearPathToLeafNode();
         ReplacedStep<?, ?> replacedStep = replacedSteps.get(replacedSteps.size() - 1);

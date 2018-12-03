@@ -254,7 +254,7 @@ If you do not connections to the database will remain open and eventually the co
  plugin activated: tinkerpop.server
  plugin activated: tinkerpop.utilities
  plugin activated: tinkerpop.tinkergraph
- gremlin> :install org.umlg sqlg-postgres 2.0.0.
+ gremlin> :install org.umlg sqlg-postgres 2.0.0
  ==>Loaded: [org.umlg, sqlg-postgres, 2.0.0]
  gremlin> :plugin list
  ==>tinkerpop.server[active]
@@ -285,7 +285,7 @@ If you do not connections to the database will remain open and eventually the co
  plugin activated: tinkerpop.server
  plugin activated: tinkerpop.utilities
  plugin activated: tinkerpop.tinkergraph
- gremlin> :install org.umlg sqlg-hsqldb 2.0.0.
+ gremlin> :install org.umlg sqlg-hsqldb 2.0.0
  ==>Loaded: [org.umlg, sqlg-hsqldb, 2.0.0]
  gremlin> :plugin list
  ==>tinkerpop.server[active]
