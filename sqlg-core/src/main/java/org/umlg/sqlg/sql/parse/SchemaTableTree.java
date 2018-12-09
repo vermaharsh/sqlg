@@ -2369,7 +2369,7 @@ public class SchemaTableTree {
             queue.add(this);
             while (!queue.isEmpty()) {
                 SchemaTableTree current = queue.remove();
-                removeObsoleteHasContainers(current);
+                removeOrTransformHasContainers(current);
                 if (invalidateByHas(current)) {
                     removeNode(current);
                 } else {
@@ -2382,11 +2382,13 @@ public class SchemaTableTree {
 
     /**
      * remove "has" containers that are not valid anymore
+     * transform "has" containers that are equivalent to simpler statements.
      *
      * @param schemaTableTree the current table tree
      */
-    private void removeObsoleteHasContainers(final SchemaTableTree schemaTableTree) {
+    private void removeOrTransformHasContainers(final SchemaTableTree schemaTableTree) {
         Set<HasContainer> toRemove = new HashSet<>();
+        Set<HasContainer> toAdd = new HashSet<>();
         for (HasContainer hasContainer : schemaTableTree.hasContainers) {
             if (hasContainer.getKey().equals(label.getAccessor())) {
                 toRemove.add(hasContainer);
@@ -2401,12 +2403,16 @@ public class SchemaTableTree {
             if (Contains.without.equals(hasContainer.getBiPredicate())) {
                 Object o = hasContainer.getValue();
                 if (o instanceof Collection && ((Collection<?>) o).size() == 0) {
+                    //P.without(Collections.emptySet()) translates to the sql IS NOT NULL
                     toRemove.add(hasContainer);
+                    toAdd.add(new HasContainer(hasContainer.getKey(), new P<>(Existence.NOTNULL, null)));
                 }
             }
         }
         schemaTableTree.hasContainers.removeAll(toRemove);
+        schemaTableTree.hasContainers.addAll(toAdd);
     }
+
 
     private SchemaTable getHasContainerSchemaTable(SchemaTableTree schemaTableTree, SchemaTable predicateSchemaTable) {
         SchemaTable hasContainerLabelSchemaTable;
