@@ -9,6 +9,8 @@ import org.apache.tinkerpop.gremlin.process.traversal.step.util.HasContainer;
 import org.apache.tinkerpop.gremlin.process.traversal.util.AndP;
 import org.apache.tinkerpop.gremlin.process.traversal.util.OrP;
 import org.apache.tinkerpop.gremlin.structure.T;
+import org.umlg.sqlg.predicate.ArrayContains;
+import org.umlg.sqlg.predicate.ArrayOverlaps;
 import org.umlg.sqlg.predicate.PropertyReference;
 import org.umlg.sqlg.predicate.Existence;
 import org.umlg.sqlg.predicate.FullText;
@@ -109,6 +111,14 @@ public class WhereClause {
         	result += prefix + "." + sqlgGraph.getSqlDialect().maybeWrapInQoutes(hasContainer.getKey());
         	result += " "+p.getBiPredicate().toString();
         	return result;
+        } else if (p.getBiPredicate() instanceof ArrayContains) {
+            prefix += "." + sqlgGraph.getSqlDialect().maybeWrapInQoutes(hasContainer.getKey());
+            result += sqlgGraph.getSqlDialect().getArrayContainsQueryText(prefix, (ArrayContains)p.getBiPredicate());
+            return result;
+        } else if (p.getBiPredicate() instanceof ArrayOverlaps) {
+            prefix += "." + sqlgGraph.getSqlDialect().maybeWrapInQoutes(hasContainer.getKey());
+            result += sqlgGraph.getSqlDialect().getArrayOverlapsQueryText(prefix, (ArrayOverlaps)p.getBiPredicate());
+            return result;
         }
         throw new IllegalStateException("Unhandled BiPredicate " + p.getBiPredicate().toString());
     }

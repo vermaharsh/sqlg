@@ -20,6 +20,8 @@ import org.postgresql.util.PGobject;
 import org.umlg.sqlg.gis.GeographyPoint;
 import org.umlg.sqlg.gis.GeographyPolygon;
 import org.umlg.sqlg.gis.Gis;
+import org.umlg.sqlg.predicate.ArrayContains;
+import org.umlg.sqlg.predicate.ArrayOverlaps;
 import org.umlg.sqlg.predicate.FullText;
 import org.umlg.sqlg.sql.parse.SchemaTableTree;
 import org.umlg.sqlg.strategy.SqlgSqlExecutor;
@@ -36,6 +38,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.umlg.sqlg.structure.PropertyType.*;
@@ -3299,6 +3302,20 @@ public class PostgresDialect extends BaseSqlDialect implements SqlBulkDialect {
             leftHand = column;
         }
         return "to_tsvector('" + fullText.getConfiguration() + "', " + leftHand + ") @@ " + toQuery + "('" + fullText.getConfiguration() + "',?)";
+    }
+
+    @Override
+    public String getArrayContainsQueryText(String column, ArrayContains<?> predicate) {
+        List<String> predicateValues =
+            predicate.getValues().stream().map(Object::toString).collect(Collectors.toList());
+        return column + " @> ARRAY[" + String.join(",", predicateValues) + "]";
+    }
+
+    @Override
+    public String getArrayOverlapsQueryText(String column, ArrayOverlaps<?> predicate) {
+        List<String> predicateValues =
+            predicate.getValues().stream().map(Object::toString).collect(Collectors.toList());
+        return column + " && ARRAY[" + String.join(",", predicateValues) + "]";
     }
 
     @Override
