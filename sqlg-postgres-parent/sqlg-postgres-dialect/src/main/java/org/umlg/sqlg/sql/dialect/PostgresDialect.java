@@ -3307,14 +3307,14 @@ public class PostgresDialect extends BaseSqlDialect implements SqlBulkDialect {
     @Override
     public String getArrayContainsQueryText(String column, ArrayContains<?> predicate) {
         List<String> predicateValues =
-            predicate.getValues().stream().map(Object::toString).collect(Collectors.toList());
+            Arrays.stream(predicate.getValues()).map(Object::toString).collect(Collectors.toList());
         return column + " @> ARRAY[" + String.join(",", predicateValues) + "]";
     }
 
     @Override
     public String getArrayOverlapsQueryText(String column, ArrayOverlaps<?> predicate) {
         List<String> predicateValues =
-            predicate.getValues().stream().map(Object::toString).collect(Collectors.toList());
+            Arrays.stream(predicate.getValues()).map(Object::toString).collect(Collectors.toList());
         return column + " && ARRAY[" + String.join(",", predicateValues) + "]";
     }
 
