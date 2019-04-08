@@ -278,6 +278,8 @@ public class WhereClause {
             keyValueMap.put(hasContainer.getKey(), "%" + hasContainer.getValue());
         } else if (p.getBiPredicate() instanceof Existence){
         	// no value
+        } else if (p.getBiPredicate() instanceof ArrayContains || p.getBiPredicate() instanceof ArrayOverlaps) {
+            // value set while construction clause itself, no parameter to set
         } else {
             keyValueMap.put(hasContainer.getKey(), hasContainer.getValue());
         }
