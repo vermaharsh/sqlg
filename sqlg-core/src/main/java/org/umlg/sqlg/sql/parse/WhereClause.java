@@ -276,6 +276,8 @@ public class WhereClause {
             keyValueMap.put(hasContainer.getKey(), hasContainer.getValue() + "%");
         } else if (p.getBiPredicate() == Text.endsWith || p.getBiPredicate() == Text.nendsWith) {
             keyValueMap.put(hasContainer.getKey(), "%" + hasContainer.getValue());
+        } else if (p.getBiPredicate() instanceof Existence) {
+            // no value
         } else {
             keyValueMap.put(hasContainer.getKey(), hasContainer.getValue());
         }
