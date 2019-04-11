@@ -20,8 +20,6 @@ import org.postgresql.util.PGobject;
 import org.umlg.sqlg.gis.GeographyPoint;
 import org.umlg.sqlg.gis.GeographyPolygon;
 import org.umlg.sqlg.gis.Gis;
-import org.umlg.sqlg.predicate.ArrayContains;
-import org.umlg.sqlg.predicate.ArrayOverlaps;
 import org.umlg.sqlg.predicate.FullText;
 import org.umlg.sqlg.sql.parse.SchemaTableTree;
 import org.umlg.sqlg.strategy.SqlgSqlExecutor;
@@ -169,7 +167,7 @@ public class PostgresDialect extends BaseSqlDialect implements SqlBulkDialect {
             case double_ARRAY:
                 return "float";
             case STRING_ARRAY:
-                return "varchar";
+                return "text";
             case LOCALDATETIME_ARRAY:
                 return "timestamptz";
             case LOCALDATE_ARRAY:

@@ -87,19 +87,19 @@ public class TestGremlinCompileArrayContains extends BaseTest {
 
         this.sqlgGraph.tx().commit();
 
-        List<Vertex> vertices = this.sqlgGraph.traversal().V().hasLabel("Foo").has("values", new ArrayContains<>(new Integer[] {2}).getPredicate()).toList();
+        List<Vertex> vertices = this.sqlgGraph.traversal().V().hasLabel("Foo").has("values", new ArrayContains<>(new String[] {"2"}).getPredicate()).toList();
         Assert.assertEquals(3, vertices.size());
         Assert.assertTrue(vertices.containsAll(Arrays.asList(v1, v2, v5)));
 
-        vertices = this.sqlgGraph.traversal().V().hasLabel("Foo").has("values", new ArrayContains<>(new Integer[] {9}).getPredicate()).toList();
+        vertices = this.sqlgGraph.traversal().V().hasLabel("Foo").has("values", new ArrayContains<>(new String[] {"9"}).getPredicate()).toList();
         Assert.assertEquals(2, vertices.size());
         Assert.assertTrue(vertices.containsAll(Arrays.asList(v3, v5)));
 
-        vertices = this.sqlgGraph.traversal().V().hasLabel("Foo").has("values", new ArrayContains<>(new Integer[] {8}).getPredicate()).toList();
+        vertices = this.sqlgGraph.traversal().V().hasLabel("Foo").has("values", new ArrayContains<>(new String[] {"8"}).getPredicate()).toList();
         Assert.assertEquals(1, vertices.size());
         Assert.assertTrue(vertices.containsAll(Arrays.asList(v2)));
 
-        vertices = this.sqlgGraph.traversal().V().hasLabel("Foo").has("values", new ArrayContains<>(new Integer[] {10}).getPredicate()).toList();
+        vertices = this.sqlgGraph.traversal().V().hasLabel("Foo").has("values", new ArrayContains<>(new String[] {"10"}).getPredicate()).toList();
         Assert.assertEquals(0, vertices.size());
     }
 }

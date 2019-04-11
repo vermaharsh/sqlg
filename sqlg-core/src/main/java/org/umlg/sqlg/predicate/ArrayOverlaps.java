@@ -35,6 +35,10 @@ public class ArrayOverlaps<T> implements BiPredicate<T[], T[]> {
     @Override
     public boolean test(T[] lhs, T[] rhs) {
         logger.warn("Using Java implementation of && (array overlaps) instead of database");
+        if (lhs.length == 0 && rhs.length == 0) {
+            return true;
+        }
+
         Set<T> lhsSet = new HashSet<>();
         for (T item : lhs) {
             lhsSet.add(item);
