@@ -44,13 +44,43 @@ public class TestGremlinCompileArrayContains extends BaseTest {
     }
 
     @Test
-    public void testHasClause() {
+    public void testHasClause_integer() {
         Assume.assumeTrue(isPostgres());
         Vertex v1 = this.sqlgGraph.addVertex(T.label, "Foo", "values", new int[] {1, 2, 3, 4, 5});
         Vertex v2 = this.sqlgGraph.addVertex(T.label, "Foo", "values", new int[] {6, 2, 8});
         Vertex v3 = this.sqlgGraph.addVertex(T.label, "Foo", "values", new int[] {9});
         Vertex v4 = this.sqlgGraph.addVertex(T.label, "Foo", "values", new int[] {});
         Vertex v5 = this.sqlgGraph.addVertex(T.label, "Foo", "values", new int[] {9, 2});
+
+        VertexLabel fooVertexLabel = this.sqlgGraph.getTopology().getVertexLabel("public", "Foo").get();
+        fooVertexLabel.ensureIndexExists(IndexType.GIN, Collections.singletonList(fooVertexLabel.getProperty("values").get()));
+
+        this.sqlgGraph.tx().commit();
+
+        List<Vertex> vertices = this.sqlgGraph.traversal().V().hasLabel("Foo").has("values", new ArrayContains<>(new Integer[] {2}).getPredicate()).toList();
+        Assert.assertEquals(3, vertices.size());
+        Assert.assertTrue(vertices.containsAll(Arrays.asList(v1, v2, v5)));
+
+        vertices = this.sqlgGraph.traversal().V().hasLabel("Foo").has("values", new ArrayContains<>(new Integer[] {9}).getPredicate()).toList();
+        Assert.assertEquals(2, vertices.size());
+        Assert.assertTrue(vertices.containsAll(Arrays.asList(v3, v5)));
+
+        vertices = this.sqlgGraph.traversal().V().hasLabel("Foo").has("values", new ArrayContains<>(new Integer[] {8}).getPredicate()).toList();
+        Assert.assertEquals(1, vertices.size());
+        Assert.assertTrue(vertices.containsAll(Arrays.asList(v2)));
+
+        vertices = this.sqlgGraph.traversal().V().hasLabel("Foo").has("values", new ArrayContains<>(new Integer[] {10}).getPredicate()).toList();
+        Assert.assertEquals(0, vertices.size());
+    }
+
+    @Test
+    public void testHasClause_string() {
+        Assume.assumeTrue(isPostgres());
+        Vertex v1 = this.sqlgGraph.addVertex(T.label, "Foo", "values", new String[] {"1", "2", "3", "4", "5"});
+        Vertex v2 = this.sqlgGraph.addVertex(T.label, "Foo", "values", new String[] {"6", "2", "8"});
+        Vertex v3 = this.sqlgGraph.addVertex(T.label, "Foo", "values", new String[] {"9"});
+        Vertex v4 = this.sqlgGraph.addVertex(T.label, "Foo", "values", new String[] {});
+        Vertex v5 = this.sqlgGraph.addVertex(T.label, "Foo", "values", new String[] {"9", "2"});
 
         VertexLabel fooVertexLabel = this.sqlgGraph.getTopology().getVertexLabel("public", "Foo").get();
         fooVertexLabel.ensureIndexExists(IndexType.GIN, Collections.singletonList(fooVertexLabel.getProperty("values").get()));

@@ -113,11 +113,11 @@ public class WhereClause {
         	return result;
         } else if (p.getBiPredicate() instanceof ArrayContains) {
             prefix += "." + sqlgGraph.getSqlDialect().maybeWrapInQoutes(hasContainer.getKey());
-            result += sqlgGraph.getSqlDialect().getArrayContainsQueryText(prefix, (ArrayContains)p.getBiPredicate());
+            result += sqlgGraph.getSqlDialect().getArrayContainsQueryText(prefix);
             return result;
         } else if (p.getBiPredicate() instanceof ArrayOverlaps) {
             prefix += "." + sqlgGraph.getSqlDialect().maybeWrapInQoutes(hasContainer.getKey());
-            result += sqlgGraph.getSqlDialect().getArrayOverlapsQueryText(prefix, (ArrayOverlaps)p.getBiPredicate());
+            result += sqlgGraph.getSqlDialect().getArrayOverlapsQueryText(prefix);
             return result;
         }
         throw new IllegalStateException("Unhandled BiPredicate " + p.getBiPredicate().toString());
@@ -276,10 +276,6 @@ public class WhereClause {
             keyValueMap.put(hasContainer.getKey(), hasContainer.getValue() + "%");
         } else if (p.getBiPredicate() == Text.endsWith || p.getBiPredicate() == Text.nendsWith) {
             keyValueMap.put(hasContainer.getKey(), "%" + hasContainer.getValue());
-        } else if (p.getBiPredicate() instanceof Existence){
-        	// no value
-        } else if (p.getBiPredicate() instanceof ArrayContains || p.getBiPredicate() instanceof ArrayOverlaps) {
-            // value set while construction clause itself, no parameter to set
         } else {
             keyValueMap.put(hasContainer.getKey(), hasContainer.getValue());
         }

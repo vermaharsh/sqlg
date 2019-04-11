@@ -614,11 +614,11 @@ public interface SqlDialect {
         throw new UnsupportedOperationException("FullText search is not supported on this database");
     }
 
-    default String getArrayContainsQueryText(String column, ArrayContains<?> predicate) {
+    default String getArrayContainsQueryText(String column) {
         throw new UnsupportedOperationException("Array Contains is not supported on this database");
     }
 
-    default String getArrayOverlapsQueryText(String column, ArrayOverlaps<?> predicate) {
+    default String getArrayOverlapsQueryText(String column) {
         throw new UnsupportedOperationException("Array Overlaps is not supported on this database");
     }
 

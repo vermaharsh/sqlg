@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.function.BiPredicate;
+import java.util.stream.Collectors;
 
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.slf4j.Logger;
@@ -19,7 +20,8 @@ public class ArrayOverlaps<T> implements BiPredicate<T[], T[]> {
     private final T[] values;
 
     public ArrayOverlaps(T[] values) {
-        this.values = Arrays.copyOf(values, values.length);
+        Set<T> uniqueValues = Arrays.stream(values).collect(Collectors.toSet());
+        this.values = uniqueValues.toArray(values);
     }
 
     public P<T[]> getPredicate() {
