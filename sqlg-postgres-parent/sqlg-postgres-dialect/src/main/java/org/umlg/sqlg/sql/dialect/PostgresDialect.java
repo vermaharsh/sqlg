@@ -36,6 +36,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.umlg.sqlg.structure.PropertyType.*;
@@ -166,7 +167,7 @@ public class PostgresDialect extends BaseSqlDialect implements SqlBulkDialect {
             case double_ARRAY:
                 return "float";
             case STRING_ARRAY:
-                return "varchar";
+                return "text";
             case LOCALDATETIME_ARRAY:
                 return "timestamptz";
             case LOCALDATE_ARRAY:
@@ -3299,6 +3300,16 @@ public class PostgresDialect extends BaseSqlDialect implements SqlBulkDialect {
             leftHand = column;
         }
         return "to_tsvector('" + fullText.getConfiguration() + "', " + leftHand + ") @@ " + toQuery + "('" + fullText.getConfiguration() + "',?)";
+    }
+
+    @Override
+    public String getArrayContainsQueryText(String column) {
+        return column + " @> ?";
+    }
+
+    @Override
+    public String getArrayOverlapsQueryText(String column) {
+        return column + " && ?";
     }
 
     @Override
