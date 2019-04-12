@@ -1,3 +1,6 @@
+##1.5.2-tableau-001
+* Add support for ArrayContains and ArrayOverlaps operators for postgres dialect
+
 ##1.5.2
 * Upgrade to TinkerPop 3.3.3
 * Add docker image for Postgresql
