@@ -612,6 +612,7 @@ public abstract class BaseSqlDialect implements SqlDialect, SqlBulkDialect, SqlS
             //split the list of edges, postgres existVertexLabel a 2 byte limit in the in clause
             for (Map.Entry<SchemaTable, List<SqlgEdge>> schemaEdges : removeEdgeCache.entrySet()) {
 
+                SchemaTable schemaTable = schemaEdges.getKey();
                 List<SqlgEdge> edges = schemaEdges.getValue();
                 int numberOfLoops = (edges.size() / sqlInParameterLimit());
                 int previous = 0;
@@ -627,39 +628,36 @@ public abstract class BaseSqlDialect implements SqlDialect, SqlBulkDialect, SqlS
                     previous = subListTo;
 
                     if (!subEdges.isEmpty()) {
-
-                        for (SchemaTable schemaTable : removeEdgeCache.keySet()) {
-                            StringBuilder sql = new StringBuilder("DELETE FROM ");
-                            sql.append(sqlgGraph.getSqlDialect().maybeWrapInQoutes(schemaTable.getSchema()));
-                            sql.append(".");
-                            sql.append(sqlgGraph.getSqlDialect().maybeWrapInQoutes((EDGE_PREFIX) + schemaTable.getTable()));
-                            sql.append(" WHERE ");
-                            sql.append(sqlgGraph.getSqlDialect().maybeWrapInQoutes("ID"));
-                            sql.append(" in (");
-                            int count = 1;
-                            for (@SuppressWarnings("unused") SqlgEdge sqlgEdge : subEdges) {
-                                sql.append("?");
-                                if (count++ < subEdges.size()) {
-                                    sql.append(",");
-                                }
+                        StringBuilder sql = new StringBuilder("DELETE FROM ");
+                        sql.append(sqlgGraph.getSqlDialect().maybeWrapInQoutes(schemaTable.getSchema()));
+                        sql.append(".");
+                        sql.append(sqlgGraph.getSqlDialect().maybeWrapInQoutes((EDGE_PREFIX) + schemaTable.getTable()));
+                        sql.append(" WHERE ");
+                        sql.append(sqlgGraph.getSqlDialect().maybeWrapInQoutes("ID"));
+                        sql.append(" in (");
+                        int count = 1;
+                        for (@SuppressWarnings("unused") SqlgEdge sqlgEdge : subEdges) {
+                            sql.append("?");
+                            if (count++ < subEdges.size()) {
+                                sql.append(",");
                             }
-                            sql.append(")");
-                            if (sqlgGraph.getSqlDialect().needsSemicolon()) {
-                                sql.append(";");
+                        }
+                        sql.append(")");
+                        if (sqlgGraph.getSqlDialect().needsSemicolon()) {
+                            sql.append(";");
+                        }
+                        if (logger.isDebugEnabled()) {
+                            logger.debug(sql.toString());
+                        }
+                        Connection conn = sqlgGraph.tx().getConnection();
+                        try (PreparedStatement preparedStatement = conn.prepareStatement(sql.toString())) {
+                            count = 1;
+                            for (SqlgEdge sqlgEdge : subEdges) {
+                                preparedStatement.setLong(count++, ((RecordId) sqlgEdge.id()).getId());
                             }
-                            if (logger.isDebugEnabled()) {
-                                logger.debug(sql.toString());
-                            }
-                            Connection conn = sqlgGraph.tx().getConnection();
-                            try (PreparedStatement preparedStatement = conn.prepareStatement(sql.toString())) {
-                                count = 1;
-                                for (SqlgEdge sqlgEdge : subEdges) {
-                                    preparedStatement.setLong(count++, ((RecordId) sqlgEdge.id()).getId());
-                                }
-                                preparedStatement.executeUpdate();
-                            } catch (SQLException e) {
-                                throw new RuntimeException(e);
-                            }
+                            preparedStatement.executeUpdate();
+                        } catch (SQLException e) {
+                            throw new RuntimeException(e);
                         }
                     }
                 }
