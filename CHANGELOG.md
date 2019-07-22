@@ -1,3 +1,6 @@
+##1.5.2-tableau-002
+* Fix bug which deletes incorrect edges when flushing cached edges to remove
+
 ##1.5.2-tableau-001
 * Add support for ArrayContains and ArrayOverlaps operators for postgres dialect
 
