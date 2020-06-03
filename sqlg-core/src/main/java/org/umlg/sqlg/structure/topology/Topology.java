@@ -19,6 +19,7 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -1071,7 +1072,7 @@ public class Topology {
                         .toList();
                 Preconditions.checkState(logs.size() == 1, "There must be one and only be one log, found %d", logs.size());
                 LocalDateTime timestamp = logs.get(0).value("timestamp");
-                Preconditions.checkState(timestamp.equals(notifyTimestamp), "notify log's timestamp does not match.");
+                Preconditions.checkState(Duration.between(notifyTimestamp, timestamp).toMillis() < 1, "notify log's timestamp does not match.");
                 int backEndPid = logs.get(0).value("pid");
                 Preconditions.checkState(backEndPid == pid, "notify pids do not match.");
                 ObjectNode log = logs.get(0).value("log");

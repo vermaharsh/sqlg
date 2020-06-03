@@ -1,3 +1,6 @@
+##1.5.2-tableau-003
+* Fix log timestamp not match issue with Java 11
+
 ##1.5.2-tableau-002
 * Fix bug which deletes incorrect edges when flushing cached edges to remove
 
