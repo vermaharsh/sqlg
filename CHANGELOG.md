@@ -1,3 +1,6 @@
+##1.5.2-tableau-004
+* Bump c3p0 lib version
+
 ##1.5.2-tableau-003
 * Fix log timestamp not match issue with Java 11
 
