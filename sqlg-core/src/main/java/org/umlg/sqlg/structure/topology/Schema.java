@@ -179,7 +179,13 @@ public class Schema implements TopologyInf {
         return ensureVertexLabelExist(label, columns, new Properties());
     }
 
-    public EdgeLabel ensureEdgeLabelExist(final String edgeLabelName, final VertexLabel outVertexLabel, final VertexLabel inVertexLabel, Map<String, PropertyType> columns, Properties additional) {
+    public EdgeLabel ensureEdgeLabelExist(
+            final String edgeLabelName,
+            final VertexLabel outVertexLabel,
+            final VertexLabel inVertexLabel,
+            Map<String, PropertyType> columns,
+            Properties additional,
+            boolean usePartialIndexForForeignKeyNotNull) {
         Objects.requireNonNull(edgeLabelName, "Given edgeLabelName may not be null");
         Objects.requireNonNull(outVertexLabel, "Given outVertexLabel may not be null");
         Objects.requireNonNull(inVertexLabel, "Given inVertexLabel may not be null");
@@ -190,7 +196,7 @@ public class Schema implements TopologyInf {
             this.topology.lock();
             edgeLabelOptional = this.getEdgeLabel(edgeLabelName);
             if (!edgeLabelOptional.isPresent()) {
-                edgeLabel = this.createEdgeLabel(edgeLabelName, outVertexLabel, inVertexLabel, columns, additional);
+                edgeLabel = this.createEdgeLabel(edgeLabelName, outVertexLabel, inVertexLabel, columns, additional, usePartialIndexForForeignKeyNotNull);
                 this.uncommittedRemovedEdgeLabels.remove(this.name + "." + EDGE_PREFIX + edgeLabelName);
                 this.uncommittedOutEdgeLabels.put(this.name + "." + EDGE_PREFIX + edgeLabelName, edgeLabel);
                 this.getTopology().fire(edgeLabel, "", TopologyChangeAction.CREATE);
@@ -204,8 +210,13 @@ public class Schema implements TopologyInf {
         return edgeLabel;
     }
 
-    public EdgeLabel ensureEdgeLabelExist(final String edgeLabelName, final VertexLabel outVertexLabel, final VertexLabel inVertexLabel, Map<String, PropertyType> columns) {
-        return ensureEdgeLabelExist(edgeLabelName, outVertexLabel, inVertexLabel, columns, new Properties());
+    public EdgeLabel ensureEdgeLabelExist(
+            final String edgeLabelName,
+            final VertexLabel outVertexLabel,
+            final VertexLabel inVertexLabel,
+            Map<String, PropertyType> columns,
+            boolean usePartialIndexForForeignKeyNotNull) {
+        return ensureEdgeLabelExist(edgeLabelName, outVertexLabel, inVertexLabel, columns, new Properties(), usePartialIndexForForeignKeyNotNull);
     }
 
     private EdgeLabel internalEnsureEdgeTableExists(EdgeLabel edgeLabel, VertexLabel outVertexLabel, VertexLabel inVertexLabel, Map<String, PropertyType> columns) {
@@ -216,7 +227,13 @@ public class Schema implements TopologyInf {
     }
 
     @SuppressWarnings("OptionalGetWithoutIsPresent")
-    private EdgeLabel createEdgeLabel(final String edgeLabelName, final VertexLabel outVertexLabel, final VertexLabel inVertexLabel, final Map<String, PropertyType> columns, Properties additional) {
+    private EdgeLabel createEdgeLabel(
+            final String edgeLabelName,
+            final VertexLabel outVertexLabel,
+            final VertexLabel inVertexLabel,
+            final Map<String, PropertyType> columns,
+            Properties additional,
+            boolean usePartialIndexForForeignKeyNotNull) {
         Preconditions.checkArgument(this.topology.isSqlWriteLockHeldByCurrentThread(), "Lock must be held by the thread to call createEdgeLabel");
         Preconditions.checkArgument(!edgeLabelName.startsWith(EDGE_PREFIX), "edgeLabelName may not start with " + EDGE_PREFIX);
         Preconditions.checkState(!this.isSqlgSchema(), "createEdgeLabel may not be called for \"%s\"", SQLG_SCHEMA);
@@ -237,7 +254,7 @@ public class Schema implements TopologyInf {
                 throw new RuntimeException(e);
             }
         }
-        return outVertexLabel.addEdgeLabel(edgeLabelName, inVertexLabel, columns, additional);
+        return outVertexLabel.addEdgeLabel(edgeLabelName, inVertexLabel, columns, additional, usePartialIndexForForeignKeyNotNull);
     }
 
     VertexLabel createSqlgSchemaVertexLabel(String vertexLabelName, Map<String, PropertyType> columns) {

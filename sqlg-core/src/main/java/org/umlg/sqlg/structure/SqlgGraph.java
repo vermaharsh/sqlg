@@ -41,6 +41,7 @@ import java.sql.*;
 import java.util.*;
 import java.util.stream.Stream;
 
+import static org.umlg.sqlg.structure.topology.Index.PartialIndexClause;
 import static org.umlg.sqlg.structure.topology.Topology.EDGE_PREFIX;
 import static org.umlg.sqlg.structure.topology.Topology.VERTEX_PREFIX;
 import static org.apache.tinkerpop.gremlin.structure.Graph.OptIn;
@@ -1101,7 +1102,7 @@ public class SqlgGraph implements Graph {
     }
 
     /**
-     * @deprecated Please use {@link Topology#ensureVertexLabelExist(String, Map)} and {@link VertexLabel#ensureIndexExists(IndexType, List)}.
+     * @deprecated Please use {@link Topology#ensureVertexLabelExist(String, Map)} and {@link VertexLabel#ensureIndexExists(IndexType, List, PartialIndexClause)}.
      */
     @Deprecated
     public void createVertexLabeledIndex(String label, Object... dummykeyValues) {
