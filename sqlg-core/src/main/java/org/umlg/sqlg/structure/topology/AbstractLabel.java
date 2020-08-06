@@ -68,6 +68,13 @@ public abstract class AbstractLabel implements TopologyInf {
     }
 
     public Index ensureIndexExists(final IndexType indexType, final List<PropertyColumn> properties) {
+        return ensureIndexExists(indexType, properties, null);
+    }
+
+    public Index ensureIndexExists(
+            final IndexType indexType,
+            final List<PropertyColumn> properties,
+            final Index.PartialIndexClause partialIndexClause) {
         String prefix = this instanceof VertexLabel ? VERTEX_PREFIX : EDGE_PREFIX;
         SchemaTable schemaTable = SchemaTable.of(this.getSchema().getName(), this.getLabel());
 
@@ -90,7 +97,7 @@ public abstract class AbstractLabel implements TopologyInf {
                     .withinRange('a', 'z').build();
             indexName = generator.generate(this.sqlgGraph.getSqlDialect().getMaximumIndexNameLength());
             
-            return this.createIndex(indexName, indexType, properties);
+            return this.createIndex(indexName, indexType, properties, partialIndexClause);
             
         } else {
 
@@ -99,7 +106,7 @@ public abstract class AbstractLabel implements TopologyInf {
 	            this.getSchema().getTopology().lock();
 	            indexOptional = this.getIndex(indexName);
 	            if (!indexOptional.isPresent()) {
-	                return this.createIndex(indexName, indexType, properties);
+	                return this.createIndex(indexName, indexType, properties, partialIndexClause);
 	            } else {
 	                return indexOptional.get();
 	            }
@@ -109,8 +116,12 @@ public abstract class AbstractLabel implements TopologyInf {
         }
     }
 
-    private Index createIndex(String indexName, IndexType indexType, List<PropertyColumn> properties) {
-        Index index = Index.createIndex(this.sqlgGraph, this, indexName, indexType, properties);
+    private Index createIndex(
+            String indexName,
+            IndexType indexType,
+            List<PropertyColumn> properties,
+            Index.PartialIndexClause partialIndexClause) {
+        Index index = Index.createIndex(this.sqlgGraph, this, indexName, indexType, properties, partialIndexClause);
         this.uncommittedIndexes.put(indexName, index);
         this.getSchema().getTopology().fire(index, "", TopologyChangeAction.CREATE);
         return index;

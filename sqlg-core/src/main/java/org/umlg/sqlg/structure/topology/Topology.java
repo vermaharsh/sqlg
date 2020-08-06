@@ -613,14 +613,26 @@ public class Topology {
      * @param outVertexLabel The edge's out {@link VertexLabel}
      * @param inVertexLabel  The edge's in {@link VertexLabel}
      * @param properties     The edge's properties with their type.
+     * @param additional
+     * @param usePartialIndexForForeignKeyNotNull If true, index created for foreign keys will be partial excluding NULL values
      * @return The {@link EdgeLabel}
      */
-    public EdgeLabel ensureEdgeLabelExist(final String edgeLabelName, final VertexLabel outVertexLabel, final VertexLabel inVertexLabel, Map<String, PropertyType> properties, Properties additional) {
+    public EdgeLabel ensureEdgeLabelExist(
+            final String edgeLabelName,
+            final VertexLabel outVertexLabel,
+            final VertexLabel inVertexLabel,
+            Map<String, PropertyType> properties,
+            Properties additional,
+            boolean usePartialIndexForForeignKeyNotNull) {
         Objects.requireNonNull(edgeLabelName, "Given edgeLabelName must not be null");
         Objects.requireNonNull(outVertexLabel, "Given outVertexLabel must not be null");
         Objects.requireNonNull(inVertexLabel, "Given inVertexLabel must not be null");
         Schema outVertexSchema = outVertexLabel.getSchema();
-        return outVertexSchema.ensureEdgeLabelExist(edgeLabelName, outVertexLabel, inVertexLabel, properties, additional);
+        return outVertexSchema.ensureEdgeLabelExist(edgeLabelName, outVertexLabel, inVertexLabel, properties, additional, usePartialIndexForForeignKeyNotNull);
+    }
+
+    public EdgeLabel ensureEdgeLabelExist(final String edgeLabelName, final VertexLabel outVertexLabel, final VertexLabel inVertexLabel, Map<String, PropertyType> properties, Properties additional) {
+        return ensureEdgeLabelExist(edgeLabelName, outVertexLabel, inVertexLabel, properties, additional, false);
     }
 
     public EdgeLabel ensureEdgeLabelExist(final String edgeLabelName, final VertexLabel outVertexLabel, final VertexLabel inVertexLabel, Map<String, PropertyType> properties) {
@@ -636,9 +648,17 @@ public class Topology {
      * @param foreignKeyOut The {@link SchemaTable} that represents the out vertex.
      * @param foreignKeyIn  The {@link SchemaTable} that represents the in vertex.
      * @param properties    The edge's properties with their type.
+     * @param additional
+     * @param usePartialIndexForForeignKeyNotNull If true, index created for foreign keys will be partial excluding NULL values
      * @return The {@link SchemaTable} that represents the edge.
      */
-    public SchemaTable ensureEdgeLabelExist(final String edgeLabelName, final SchemaTable foreignKeyOut, final SchemaTable foreignKeyIn, Map<String, PropertyType> properties, Properties additional) {
+    public SchemaTable ensureEdgeLabelExist(
+            final String edgeLabelName,
+            final SchemaTable foreignKeyOut,
+            final SchemaTable foreignKeyIn,
+            Map<String, PropertyType> properties,
+            Properties additional,
+            boolean usePartialIndexForForeignKeyNotNull) {
         Objects.requireNonNull(edgeLabelName, "Given edgeLabelName must not be null");
         Objects.requireNonNull(foreignKeyOut, "Given outTable must not be null");
         Objects.requireNonNull(foreignKeyIn, "Given inTable must not be null");
@@ -656,8 +676,12 @@ public class Topology {
         Preconditions.checkState(inVertexLabel.isPresent(), "in VertexLabel must be present");
 
         @SuppressWarnings("OptionalGetWithoutIsPresent")
-        EdgeLabel edgeLabel = outVertexSchema.ensureEdgeLabelExist(edgeLabelName, outVertexLabel.get(), inVertexLabel.get(), properties, additional);
+        EdgeLabel edgeLabel = outVertexSchema.ensureEdgeLabelExist(edgeLabelName, outVertexLabel.get(), inVertexLabel.get(), properties, additional, usePartialIndexForForeignKeyNotNull);
         return SchemaTable.of(foreignKeyOut.getSchema(), edgeLabel.getLabel());
+    }
+
+    public SchemaTable ensureEdgeLabelExist(final String edgeLabelName, final SchemaTable foreignKeyOut, final SchemaTable foreignKeyIn, Map<String, PropertyType> properties, Properties additional) {
+        return ensureEdgeLabelExist(edgeLabelName, foreignKeyOut, foreignKeyIn, properties, additional, false);
     }
 
     public SchemaTable ensureEdgeLabelExist(final String edgeLabelName, final SchemaTable foreignKeyOut, final SchemaTable foreignKeyIn, Map<String, PropertyType> properties) {

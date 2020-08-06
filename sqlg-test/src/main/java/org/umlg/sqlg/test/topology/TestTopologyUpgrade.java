@@ -80,8 +80,8 @@ public class TestTopologyUpgrade extends BaseTest {
             put("name", PropertyType.STRING);
         }};
         @SuppressWarnings("UnusedAssignment")
-        EdgeLabel edgeLabel = this.sqlgGraph.getTopology().getPublicSchema().ensureEdgeLabelExist("edge", bVertexLabel, aVertexLabel, properties);
-        edgeLabel = this.sqlgGraph.getTopology().getPublicSchema().ensureEdgeLabelExist("edge", cVertexLabel, aVertexLabel, properties);
+        EdgeLabel edgeLabel = this.sqlgGraph.getTopology().getPublicSchema().ensureEdgeLabelExist("edge", bVertexLabel, aVertexLabel, properties, false);
+        edgeLabel = this.sqlgGraph.getTopology().getPublicSchema().ensureEdgeLabelExist("edge", cVertexLabel, aVertexLabel, properties, false);
         edgeLabel.ensureIndexExists(IndexType.UNIQUE, new ArrayList<>(edgeLabel.getProperties().values()));
         this.sqlgGraph.tx().commit();
 

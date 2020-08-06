@@ -29,6 +29,40 @@ public class Index implements TopologyInf {
     private List<PropertyColumn> properties = new ArrayList<>();
     private IndexType uncommittedIndexType;
     private List<PropertyColumn> uncommittedProperties = new ArrayList<>();
+    private PartialIndexClause partialIndexClause = null;
+
+    /**
+     * PartialIndexClause allows to add any conditional clause for a property column while adding an index to a
+     * Vertex or Edge. This is used with ensureIndexExists method which is used to add user defined additional index to
+     * a Vertex or an Edge.
+     *
+     * For implicit index created during Edge creation itself, use the boolean argument
+     * usePartialIndexForForeignKeyNotNull with EdgeLabel#createEdgeLabel.
+     */
+    public static class PartialIndexClause {
+        final PropertyColumn property;
+        final String condition;
+
+        public PartialIndexClause(PropertyColumn property, String condition) {
+            this.property = property;
+            this.condition = condition;
+        }
+
+        ObjectNode toNotifyJson() {
+            ObjectNode propertyJsonNode = property.toNotifyJson();
+            propertyJsonNode.put("condition", condition);
+            return propertyJsonNode;
+        }
+
+        static PartialIndexClause fromNotifyJson(AbstractLabel abstractLabel, JsonNode jsonNode) {
+            if (jsonNode == null) {
+                return null;
+            }
+
+            PropertyColumn property = PropertyColumn.fromNotifyJson(abstractLabel, jsonNode);
+            return new PartialIndexClause(property, jsonNode.get("condition").asText());
+        }
+    }
 
     /**
      * create uncommitted index
@@ -38,12 +72,18 @@ public class Index implements TopologyInf {
      * @param abstractLabel
      * @param properties
      */
-    Index(String name, IndexType indexType, AbstractLabel abstractLabel, List<PropertyColumn> properties) {
+    Index(
+            String name,
+            IndexType indexType,
+            AbstractLabel abstractLabel,
+            List<PropertyColumn> properties,
+            PartialIndexClause partialIndexClause) {
         this.name = name;
         this.indexType = indexType;
         this.uncommittedIndexType = indexType;
         this.abstractLabel = abstractLabel;
         this.uncommittedProperties.addAll(properties);
+        this.partialIndexClause = partialIndexClause;
     }
 
     /**
@@ -176,6 +216,11 @@ public class Index implements TopologyInf {
         }
 
         sql.append(")");
+        if (partialIndexClause != null) {
+            sql.append(" WHERE ");
+            sql.append((sqlDialect.maybeWrapInQoutes(partialIndexClause.property.getName())));
+            sql.append(" " + partialIndexClause.condition);
+        }
         if (sqlDialect.needsSemicolon()) {
             sql.append(";");
         }
@@ -200,6 +245,9 @@ public class Index implements TopologyInf {
             propertyArrayNode.add(property.toNotifyJson());
         }
         result.set("uncommittedProperties", propertyArrayNode);
+        if (partialIndexClause != null) {
+            result.set("partialIndexClause", partialIndexClause.toNotifyJson());
+        }
         return Optional.of(result);
     }
 
@@ -216,12 +264,20 @@ public class Index implements TopologyInf {
             //noinspection OptionalGetWithoutIsPresent
             properties.add(propertyColumnOptional.get());
         }
-        Index index = new Index(name, indexType, abstractLabel, properties);
+        PartialIndexClause partialIndexClause =
+                PartialIndexClause.fromNotifyJson(abstractLabel, indexNode.get("partialIndexClause"));
+        Index index = new Index(name, indexType, abstractLabel, properties, partialIndexClause);
         return index;
     }
 
-    static Index createIndex(SqlgGraph sqlgGraph, AbstractLabel abstractLabel, String indexName, IndexType indexType, List<PropertyColumn> properties) {
-        Index index = new Index(indexName, indexType, abstractLabel, properties);
+    static Index createIndex(
+            SqlgGraph sqlgGraph,
+            AbstractLabel abstractLabel,
+            String indexName,
+            IndexType indexType,
+            List<PropertyColumn> properties,
+            PartialIndexClause partialIndexClause) {
+        Index index = new Index(indexName, indexType, abstractLabel, properties, partialIndexClause);
         SchemaTable schemaTable = SchemaTable.of(abstractLabel.getSchema().getName(), abstractLabel.getLabel());
         index.addIndex(sqlgGraph, schemaTable);
         TopologyManager.addIndex(sqlgGraph, index);
