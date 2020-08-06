@@ -1,3 +1,6 @@
+##1.5.2-tableau-005
+* Add support to create partial index on vertex and edge tables
+
 ##1.5.2-tableau-004
 * Bump c3p0 lib version
 
