@@ -31,6 +31,14 @@ public class Index implements TopologyInf {
     private List<PropertyColumn> uncommittedProperties = new ArrayList<>();
     private PartialIndexClause partialIndexClause = null;
 
+    /**
+     * PartialIndexClause allows to add any conditional clause for a property column while adding an index to a
+     * Vertex or Edge. This is used with ensureIndexExists method which is used to add user defined additional index to
+     * a Vertex or an Edge.
+     *
+     * For implicit index created during Edge creation itself, use the boolean argument
+     * usePartialIndexForForeignKeyNotNull with EdgeLabel#createEdgeLabel.
+     */
     public static class PartialIndexClause {
         final PropertyColumn property;
         final String condition;
